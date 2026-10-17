@@ -486,6 +486,40 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             text-decoration: underline;
         }
 
+        .links-row {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .wiki-link {
+            font-size: 0.75rem;
+            color: var(--accent-gold);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: 600;
+        }
+
+        .wiki-link:hover {
+            text-decoration: underline;
+        }
+
+        .attribution-rationale {
+            background: rgba(15, 23, 42, 0.7);
+            border-left: 3px solid var(--accent-cyan);
+            padding: 0.6rem 0.85rem;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.78rem;
+            line-height: 1.45;
+            color: #cbd5e1;
+        }
+
+        .attribution-rationale strong {
+            color: var(--accent-cyan);
+        }
+
         /* Empty State */
         .empty-state {
             grid-column: 1 / -1;
@@ -531,7 +565,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="banner-subtitle">
                     <span id="bannerArtistPeriod">Period</span> &bull; 
                     <span id="bannerArtistDates">Dates</span> &bull; 
-                    <span id="bannerArtistMuseum">Primary Museum</span>
+                    <span id="bannerArtistMuseum">Primary Museum</span> &bull;
+                    <a href="#" id="bannerArtistWiki" target="_blank" rel="noopener" class="wiki-link">📖 English Wikipedia ↗</a>
                 </div>
                 <p class="banner-bio" id="bannerArtistBio">Biography and connoisseurship notes...</p>
                 <div class="filter-tabs">
@@ -673,6 +708,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             bannerDates.textContent = `${artist.birth_year}–${artist.death_year}`;
             bannerMuseum.textContent = artist.primary_museum;
             bannerBio.textContent = artist.biography_snippet;
+            const bannerWiki = document.getElementById('bannerArtistWiki');
+            if (bannerWiki) bannerWiki.href = artist.wikipedia_url;
 
             // Update tab counters
             document.getElementById('countAll').textContent = artist.artworks.length;
@@ -756,6 +793,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             </span>
                         </div>
 
+                        <div class="attribution-rationale">
+                            <strong>Stylometric Diagnostic:</strong> ${art.attribution_rationale}
+                        </div>
+
                         <div class="card-metadata">
                             <strong>${art.creation_date}</strong> &bull; ${art.medium}<br/>
                             🏛️ <em>${art.institution}</em> (${art.collection_id})
@@ -789,9 +830,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                                 <input type="range" min="0" max="100" value="0" class="heatmap-slider" 
                                     oninput="document.getElementById('heatmap-${art.id}').style.opacity = this.value / 100" />
                             </div>
-                            <a href="${art.museum_url}" target="_blank" rel="noopener" class="museum-link">
-                                Museum Catalog ↗
-                            </a>
+                            <div class="links-row">
+                                <a href="${art.museum_url}" target="_blank" rel="noopener" class="museum-link">
+                                    🏛️ Museum Record ↗
+                                </a>
+                                <a href="${art.wikipedia_url}" target="_blank" rel="noopener" class="wiki-link">
+                                    📖 Wikipedia (EN) ↗
+                                </a>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -827,6 +873,7 @@ class ArtworkBrowserRenderer:
                 "period": entry.period,
                 "nationality": entry.nationality,
                 "primary_museum": entry.primary_museum,
+                "wikipedia_url": entry.wikipedia_url,
                 "canonical_count": entry.canonical_count,
                 "contested_count": entry.contested_count,
                 "biography_snippet": entry.biography_snippet,
@@ -843,8 +890,10 @@ class ArtworkBrowserRenderer:
                     "institution": art.institution,
                     "collection_id": art.collection_id,
                     "museum_url": art.museum_url,
+                    "wikipedia_url": art.wikipedia_url,
                     "image_url": art.image_url,
                     "attribution_confidence": art.attribution_confidence,
+                    "attribution_rationale": art.attribution_rationale,
                     "status": art.status,
                     "status_label": art.status_label,
                     "status_color": art.status_color,
