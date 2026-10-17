@@ -23,6 +23,8 @@ class PatchMetadata:
     canvas_height: int
     variance: float = 0.0
     is_valid: bool = True
+    pixels_per_mm: Optional[float] = None
+    physical_mm_size: Optional[Tuple[float, float]] = None
 
     @property
     def normalized_center(self) -> Tuple[float, float]:
@@ -131,5 +133,92 @@ class ArtworkTiler:
             metadata=meta_list,
             canvas_size=(w, h),
             patch_size=self.patch_size,
+            stride=self.stride,
+        )
+
+    def slice_metric_patches(
+        self,
+        image: Image.Image | np.ndarray,
+        pixels_per_mm: float,
+        target_patch_mm: float = 25.0,
+        output_pixel_size: int = 256,
+    ) -> PatchGrid:
+        """
+        Slices canvas into patches of calibrated physical metric dimensions (in millimeters)
+        and resamples each patch to a fixed standard pixel resolution.
+        
+        Mitigates sensor and digitization resolution discrepancies (e.g. 1200 DPI vs 300 DPI)
+        ensuring that every patch corresponds to the exact same physical area of paint.
+        """
+        if pixels_per_mm <= 0:
+            raise ValueError(f"pixels_per_mm must be positive, got {pixels_per_mm}")
+
+        # Physical window size in raw canvas pixels
+        crop_px = max(8, int(round(target_patch_mm * pixels_per_mm)))
+        stride_px = max(4, int(round(crop_px * (self.stride / self.patch_size))))
+
+        if isinstance(image, Image.Image):
+            pil_img = image.convert("RGB")
+            arr = np.array(pil_img)
+        else:
+            arr = np.asarray(image)
+            pil_img = Image.fromarray(arr)
+
+        h, w = arr.shape[:2]
+        patches: List[np.ndarray] = []
+        meta_list: List[PatchMetadata] = []
+
+        patch_id = 0
+        y_max = h - crop_px + 1 if self.discard_borders else h
+        x_max = w - crop_px + 1 if self.discard_borders else w
+
+        for y in range(0, max(1, y_max), stride_px):
+            for x in range(0, max(1, x_max), stride_px):
+                actual_w = min(crop_px, w - x)
+                actual_h = min(crop_px, h - y)
+
+                if self.discard_borders and (actual_w < crop_px or actual_h < crop_px):
+                    continue
+
+                patch_crop = arr[y : y + actual_h, x : x + actual_w]
+
+                # Check variance
+                if patch_crop.ndim == 3:
+                    gray = 0.299 * patch_crop[:, :, 0] + 0.587 * patch_crop[:, :, 1] + 0.114 * patch_crop[:, :, 2]
+                else:
+                    gray = patch_crop
+
+                var = float(np.var(gray))
+                if var < self.min_variance:
+                    continue
+
+                # Resample to normalized output pixel size (e.g. 256x256)
+                crop_pil = Image.fromarray(patch_crop)
+                resampled = crop_pil.resize((output_pixel_size, output_pixel_size), Image.Resampling.LANCZOS)
+                patch_arr = np.array(resampled)
+
+                patches.append(patch_arr)
+                meta_list.append(
+                    PatchMetadata(
+                        patch_id=patch_id,
+                        x=x,
+                        y=y,
+                        width=actual_w,
+                        height=actual_h,
+                        canvas_width=w,
+                        canvas_height=h,
+                        variance=var,
+                        is_valid=True,
+                        pixels_per_mm=pixels_per_mm,
+                        physical_mm_size=(actual_w / pixels_per_mm, actual_h / pixels_per_mm),
+                    )
+                )
+                patch_id += 1
+
+        return PatchGrid(
+            patches=patches,
+            metadata=meta_list,
+            canvas_size=(w, h),
+            patch_size=output_pixel_size,
             stride=self.stride,
         )

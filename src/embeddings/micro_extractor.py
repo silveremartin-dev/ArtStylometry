@@ -49,6 +49,7 @@ class MicroFactureExtractor:
         use_deep_model: bool = True,
         device: Optional[str] = None,
         embedding_dim: int = 128,
+        apply_apodization: bool = False,
     ) -> None:
         """
         Args:
@@ -56,10 +57,12 @@ class MicroFactureExtractor:
             use_deep_model: If True and PyTorch is available, attempts to load DINOv2.
             device: 'cuda', 'cpu', or None (auto-detect).
             embedding_dim: Desired output embedding dimension for fallback engine (default 128).
+            apply_apodization: If True, applies 2D Hann window apodization to attenuate edge discontinuities.
         """
         self.model_name = model_name
         self.use_deep_model = use_deep_model and HAS_TORCH
         self.embedding_dim = embedding_dim
+        self.apply_apodization = apply_apodization
         self.decoupler = ChromaticDecoupler()
         self.crack_detector = CraquelureDetector()
         self.deep_model = None
@@ -69,6 +72,31 @@ class MicroFactureExtractor:
             self._init_deep_model()
         else:
             self.device = "cpu"
+
+    @staticmethod
+    def apply_spatial_apodization(patch: np.ndarray, window_type: str = "hann") -> np.ndarray:
+        """
+        Applies a 2D spatial tapering window (Hann or Gaussian) to a patch.
+        Mitigates token and tile border step discontinuities that artificially slice continuous brushstrokes.
+        """
+        h, w = patch.shape[:2]
+        if window_type == "gaussian":
+            y = np.linspace(-1, 1, h)
+            x = np.linspace(-1, 1, w)
+            xx, yy = np.meshgrid(x, y)
+            win2d = np.exp(-(xx**2 + yy**2) / (2 * (0.45**2)))
+        else:  # Hann window default
+            win_y = np.hanning(h)
+            win_x = np.hanning(w)
+            win2d = np.outer(win_y, win_x)
+
+        if patch.ndim == 3:
+            win2d = win2d[:, :, np.newaxis]
+
+        # Blend toward mean patch intensity at outer borders
+        mean_val = np.mean(patch, axis=(0, 1), keepdims=True)
+        tapered = mean_val + (patch.astype(np.float32) - mean_val) * win2d
+        return np.clip(tapered, 0, 255).astype(patch.dtype)
 
     def _init_deep_model(self) -> None:
         """Attempts to load DINOv2 model from torch hub or local cache."""
@@ -100,14 +128,16 @@ class MicroFactureExtractor:
         """
         Extracts a normalized embedding vector for a single RGB patch (H, W, 3).
         """
+        input_patch = self.apply_spatial_apodization(patch) if self.apply_apodization else patch
+
         # 1. Evaluate craquelure cleanliness
-        crack_mask = self.crack_detector.detect_cracks(patch)
+        crack_mask = self.crack_detector.detect_cracks(input_patch)
         cleanliness = crack_mask.cleanliness_score
 
         # 2. Extract gradient features
-        grad_feats = self.decoupler.compute_gradients(patch)
+        grad_feats = self.decoupler.compute_gradients(input_patch)
         gradient_energy = grad_feats.gradient_energy
-        grad_vec = self.decoupler.extract_gradient_feature_vector(patch)
+        grad_vec = self.decoupler.extract_gradient_feature_vector(input_patch)
 
         # 3. Compute primary texture representation
         if self.deep_model is not None and HAS_TORCH:

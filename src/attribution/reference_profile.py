@@ -32,6 +32,8 @@ class ArtistReferenceProfile:
     outlier_threshold_p95: float
     outlier_threshold_p99: float
     patch_dim: int
+    shrinkage: float = 0.0
+    condition_number: float = 1.0
 
     @classmethod
     def fit_from_patch_vectors(
@@ -40,14 +42,22 @@ class ArtistReferenceProfile:
         patch_vectors: np.ndarray,
         num_artworks: int = 1,
         regularization: float = 1e-4,
+        covariance_method: str = "ledoit_wolf",  # "ledoit_wolf", "oas", or "empirical"
+        spatial_decorrelation_stride: int = 1,
     ) -> ArtistReferenceProfile:
         """
         Fits a multivariate reference distribution from patch vectors (N, D).
+        Mitigates sample size starvation (N << D) via Ledoit-Wolf or OAS shrinkage.
         """
         if len(patch_vectors) < 2:
             raise ValueError("Need at least 2 patches to compute artist distribution")
 
         vectors = np.asarray(patch_vectors, dtype=np.float64)
+
+        # Apply spatial decorrelation subsampling if requested
+        if spatial_decorrelation_stride > 1 and len(vectors) > spatial_decorrelation_stride * 2:
+            vectors = vectors[::spatial_decorrelation_stride]
+
         n, d = vectors.shape
 
         # Normalize rows to unit sphere if not already normalized
@@ -60,13 +70,33 @@ class ArtistReferenceProfile:
         if c_norm > 0:
             centroid /= c_norm
 
-        # Empirical covariance with Ledoit-Wolf-like ridge regularization
-        cov = np.cov(vectors, rowvar=False)
-        if cov.ndim == 0:
-            cov = np.array([[cov]])
+        shrinkage_val = 0.0
+        cov_reg: np.ndarray
 
-        # Add Tikhonov / Ridge regularization to guarantee invertibility
-        cov_reg = cov + np.eye(d) * (regularization + 1e-5 * float(np.trace(cov)) / d)
+        # High-dimensional shrinkage estimator (Ledoit-Wolf or OAS)
+        if covariance_method in ("ledoit_wolf", "oas") and n >= 3 and d >= 2:
+            try:
+                from sklearn.covariance import LedoitWolf, OAS
+                if covariance_method == "oas":
+                    model = OAS(assume_centered=False).fit(vectors)
+                else:
+                    model = LedoitWolf(assume_centered=False).fit(vectors)
+                cov_reg = model.covariance_.copy()
+                shrinkage_val = float(getattr(model, "shrinkage_", 0.0))
+            except Exception:
+                cov = np.cov(vectors, rowvar=False)
+                if cov.ndim == 0:
+                    cov = np.array([[cov]])
+                cov_reg = cov + np.eye(d) * (regularization + 1e-5 * float(np.trace(cov)) / max(d, 1))
+        else:
+            cov = np.cov(vectors, rowvar=False)
+            if cov.ndim == 0:
+                cov = np.array([[cov]])
+            cov_reg = cov + np.eye(d) * (regularization + 1e-5 * float(np.trace(cov)) / max(d, 1))
+
+        # Add minimal jitter to guarantee positive-definiteness
+        cov_reg += np.eye(d) * 1e-6
+        cond_num = float(np.linalg.cond(cov_reg)) if cov_reg.shape[0] > 1 else 1.0
 
         try:
             inv_cov = np.linalg.pinv(cov_reg)
@@ -87,7 +117,7 @@ class ArtistReferenceProfile:
         return cls(
             artist_name=artist_name,
             centroid=centroid.astype(np.float32),
-            covariance=cov.astype(np.float32),
+            covariance=cov_reg.astype(np.float32),
             inv_covariance=inv_cov.astype(np.float32),
             num_reference_artworks=num_artworks,
             num_reference_patches=n,
@@ -96,6 +126,8 @@ class ArtistReferenceProfile:
             outlier_threshold_p95=p95,
             outlier_threshold_p99=p99,
             patch_dim=d,
+            shrinkage=shrinkage_val,
+            condition_number=cond_num,
         )
 
     def compute_distance(

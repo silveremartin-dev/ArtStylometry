@@ -12,44 +12,33 @@
 
 | Module | Location | Status | Key Features |
 | :--- | :--- | :---: | :--- |
-| **`Acquisition`** | `src/acquisition/` | ✅ Complete | IIIF Presentation API (v2/v3), Image API `info.json`, tile grid calculation, deep-zoom tile downloader, local canvas loader |
-| **`Preprocessing`** | `src/preprocessing/` | ✅ Complete | Non-destructive micro-patch tiler, Rec. 709 chromatic decoupler, Sobel spatial derivatives, morphological black top-hat craquelure filter |
-| **`Embeddings`** | `src/embeddings/` | ✅ Complete | Micro-facture extractor (DINOv2 patch tokens + deterministic Gram/Gabor gradient fallback), macro-composition layout, VLAD / statistical moment aggregator |
-| **`Attribution`** | `src/attribution/` | ✅ Complete | Artist reference profiling with Mahalanobis & Cosine manifolds, sliding-window spatial heatmap generator, One-Class SVM / Isolation Forest anomaly detector |
+| **`Acquisition`** | `src/acquisition/` | ✅ Complete | IIIF Presentation API (v2/v3), Image API `info.json`, tile grid calculation, deep-zoom tile downloader, **Worldwide Museum Registry (14 institutions)**, physical dimension parser |
+| **`Preprocessing`** | `src/preprocessing/` | ✅ Complete | Non-destructive micro-patch tiler, **calibrated metric-scale patch slicing**, Rec. 709 chromatic decoupler, **frequency bandpass filter (DoG & 2D FFT)**, **multimodal forensic layer fusion (IRR, XRR, UVF)** |
+| **`Embeddings`** | `src/embeddings/` | ✅ Complete | Micro-facture extractor (DINOv2 patch tokens + deterministic Gram/Gabor gradient fallback), **spatial window apodization (Hann/Gaussian)**, macro-composition layout, VLAD / statistical moment aggregator |
+| **`Attribution`** | `src/attribution/` | ✅ Complete | Artist reference profiling with **Ledoit-Wolf & OAS shrinkage covariance**, sliding-window spatial heatmap generator, One-Class SVM / Isolation Forest anomaly detector |
 | **`Clustering`** | `src/clustering/` | ✅ Complete | High-dimensional artwork clustering (HDBSCAN/DBSCAN), UMAP / PCA manifold projection, noise & outlier isolation |
 | **`Visualization`**| `src/visualization/` | ✅ Complete | Heatmap overlay renderer with zone bounding boxes, side-by-side comparative views, standalone zero-dependency interactive HTML dashboard |
-| **`Browser`**      | `src/browser/`       | ✅ Complete | Interactive browser (`browser.html`) with chronological/alphabetical sorting, real-time search, Musée du Louvre & Smithsonian collections, confidence badges, interactive heatmap slider, and famous controversy case studies |
+| **`Browser`**      | `src/browser/`       | ✅ Complete | Interactive browser (`browser.html`) with chronological/alphabetical sorting, real-time search, Musée du Louvre & Smithsonian collections, confidence badges, attribution rationale diagnostics, Wikipedia English links, and famous controversies |
 | **`Pipeline`**     | `src/pipeline.py`    | ✅ Complete | Central CLI orchestrator for auditing individual paintings, clustering multi-painting collections, and building the interactive browser |
 
 ---
 
 ## 🧪 3. Test Suite & Validation Status
 
-* **Status**: 100% Passing (20 of 20 tests passed).
+* **Status**: 100% Passing (28 of 28 tests passed).
 * **Test Command**: `py -3 -m pytest -v tests/`
 
 ```
-tests/test_acquisition.py::test_iiif_image_service_url_construction PASSED
-tests/test_acquisition.py::test_iiif_client_parse_v2_manifest PASSED
-tests/test_acquisition.py::test_iiif_client_parse_v3_manifest PASSED
-tests/test_acquisition.py::test_load_local_canvas PASSED
-tests/test_attribution.py::test_reference_profile_mahalanobis_calibration PASSED
-tests/test_attribution.py::test_heatmap_generator_detects_anomaly_region PASSED
-tests/test_attribution.py::test_stylistic_anomaly_detector PASSED
-tests/test_browser.py::test_catalog_data_integrity PASSED
-tests/test_browser.py::test_browser_html_rendering PASSED
-tests/test_browser.py::test_browser_export PASSED
-tests/test_clustering.py::test_dimension_reducer_pca_and_umap PASSED
-tests/test_clustering.py::test_collection_clusterer_discovers_groups_and_outliers PASSED
-tests/test_embeddings.py::test_micro_facture_extractor PASSED
-tests/test_embeddings.py::test_macro_composition_extractor PASSED
-tests/test_embeddings.py::test_patch_aggregator_statistical_and_vlad PASSED
-tests/test_pipeline.py::test_pipeline_audit_and_clustering PASSED
-tests/test_preprocessing.py::test_artwork_tiler_slice_dimensions PASSED
-tests/test_preprocessing.py::test_tiler_filters_blank_margins PASSED
-tests/test_preprocessing.py::test_chromatic_decoupler_luminance_and_gradients PASSED
-tests/test_preprocessing.py::test_craquelure_detector_synthetic_crack PASSED
-============================= 20 passed in 10.60s =============================
+tests/test_acquisition.py (4 tests) PASSED
+tests/test_museum_registry.py (3 tests) PASSED
+tests/test_preprocessing.py (4 tests) PASSED
+tests/test_critique_mitigations.py (5 tests) PASSED
+tests/test_embeddings.py (3 tests) PASSED
+tests/test_attribution.py (3 tests) PASSED
+tests/test_clustering.py (2 tests) PASSED
+tests/test_browser.py (3 tests) PASSED
+tests/test_pipeline.py (1 test) PASSED
+============================= 28 passed in 14.08s =============================
 ```
 
 ---
