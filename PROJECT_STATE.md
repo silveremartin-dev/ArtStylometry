@@ -18,13 +18,14 @@
 | **`Attribution`** | `src/attribution/` | ✅ Complete | Artist reference profiling with Mahalanobis & Cosine manifolds, sliding-window spatial heatmap generator, One-Class SVM / Isolation Forest anomaly detector |
 | **`Clustering`** | `src/clustering/` | ✅ Complete | High-dimensional artwork clustering (HDBSCAN/DBSCAN), UMAP / PCA manifold projection, noise & outlier isolation |
 | **`Visualization`**| `src/visualization/` | ✅ Complete | Heatmap overlay renderer with zone bounding boxes, side-by-side comparative views, standalone zero-dependency interactive HTML dashboard |
-| **`Pipeline`** | `src/pipeline.py` | ✅ Complete | Central CLI orchestrator for auditing individual paintings and clustering multi-painting collections |
+| **`Browser`**      | `src/browser/`       | ✅ Complete | Interactive browser (`browser.html`) with chronological/alphabetical sorting, real-time search, Musée du Louvre & Smithsonian collections, confidence badges, interactive heatmap slider, and famous controversy case studies |
+| **`Pipeline`**     | `src/pipeline.py`    | ✅ Complete | Central CLI orchestrator for auditing individual paintings, clustering multi-painting collections, and building the interactive browser |
 
 ---
 
 ## 🧪 3. Test Suite & Validation Status
 
-* **Status**: 100% Passing (17 of 17 tests passed).
+* **Status**: 100% Passing (20 of 20 tests passed).
 * **Test Command**: `py -3 -m pytest -v tests/`
 
 ```
@@ -35,6 +36,9 @@ tests/test_acquisition.py::test_load_local_canvas PASSED
 tests/test_attribution.py::test_reference_profile_mahalanobis_calibration PASSED
 tests/test_attribution.py::test_heatmap_generator_detects_anomaly_region PASSED
 tests/test_attribution.py::test_stylistic_anomaly_detector PASSED
+tests/test_browser.py::test_catalog_data_integrity PASSED
+tests/test_browser.py::test_browser_html_rendering PASSED
+tests/test_browser.py::test_browser_export PASSED
 tests/test_clustering.py::test_dimension_reducer_pca_and_umap PASSED
 tests/test_clustering.py::test_collection_clusterer_discovers_groups_and_outliers PASSED
 tests/test_embeddings.py::test_micro_facture_extractor PASSED
@@ -45,7 +49,7 @@ tests/test_preprocessing.py::test_artwork_tiler_slice_dimensions PASSED
 tests/test_preprocessing.py::test_tiler_filters_blank_margins PASSED
 tests/test_preprocessing.py::test_chromatic_decoupler_luminance_and_gradients PASSED
 tests/test_preprocessing.py::test_craquelure_detector_synthetic_crack PASSED
-============================= 17 passed in 33.83s =============================
+============================= 20 passed in 10.60s =============================
 ```
 
 ---

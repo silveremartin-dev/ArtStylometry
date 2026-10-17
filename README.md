@@ -4,11 +4,30 @@
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
 [![DINOv2](https://img.shields.io/badge/embeddings-DINOv2%20%2F%20Gram-purple.svg)](https://github.com/facebookresearch/dinov2)
 [![Clustering: HDBSCAN](https://img.shields.io/badge/clustering-HDBSCAN%20%2B%20UMAP-yellow.svg)](https://scikit-learn.org/)
-[![Tests: 17 Passing](https://img.shields.io/badge/tests-17%20passed-brightgreen.svg)](tests/)
+[![Tests: 20 Passing](https://img.shields.io/badge/tests-20%20passed-brightgreen.svg)](tests/)
 [![IIIF API Compliant](https://img.shields.io/badge/IIIF-v2%20%26%20v3-red.svg)](https://iiif.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**ArtStylometry** is an open-source, high-throughput computational stylometry and quantitative connoisseurship engine for fine art paintings. It transforms ultra-high-resolution museum image archives (**IIIF gigapixel collections**) into statistical artist reference manifolds, **intra-canvas multi-hand spatial attribution heatmaps**, and **unsupervised collection clusters**, isolating studio assistant interventions, late restorations, and contested attributions without relying on opaque commercial black boxes.
+**ArtStylometry** is an open-source, high-throughput computational stylometry and quantitative connoisseurship engine for fine art paintings. It transforms ultra-high-resolution museum image archives (**IIIF gigapixel collections** from the **Musée du Louvre**, **Smithsonian Institution**, **Rijksmuseum**, and **National Gallery**) into statistical artist reference manifolds, **intra-canvas multi-hand spatial attribution heatmaps**, and **unsupervised collection clusters**, isolating studio assistant interventions, late restorations, and contested attributions without relying on opaque commercial black boxes.
+
+---
+
+## 🏛️ Interactive Museum Artwork Browser (`browser.html`)
+
+ArtStylometry includes a standalone, zero-dependency offline web application ([`browser.html`](file:///c:/Silvere/Encours/Developpement/ArtStylometry/browser.html)) allowing researchers, curators, and collectors to navigate fine art corpora:
+
+* **Dual Ordering**: Sort artists **Chronologically** (by artistic epoch: Early/High Renaissance, Dutch Golden Age, French Baroque, Gilded Age Tonalism) or **Alphabetically (A-Z)**.
+* **Instant Search**: Search bar to query painters, periods, museums, or painting titles in real time.
+* **Empirical Attribution Degree**: Every canvas displays a calibrated confidence percentage, status pill (*Consensus Masterwork*, *Studio Hand*, *Disputed / Multi-Hand*, or *Suspected Misattribution*), Mahalanobis distance, and crack cleanliness index.
+* **Famous Case Studies ("Cas d'école")**: Dedicated filter and diagnostic cards detailing landmark historical controversies (e.g. Leonardo's *Salvator Mundi*, Rembrandt's *The Man with the Golden Helmet*, Vermeer's *Girl with a Flute*).
+* **Interactive Heatmap Overlay**: Live opacity slider blending the continuous 2D attribution heatmap and outlining detected anomaly bounding boxes over the canvas.
+* **Museum Links**: Direct hyperlinks to verified catalog accession records at the **Musée du Louvre** (`collections.louvre.fr`), **Smithsonian American Art Museum & Freer Gallery**, and **Rijksmuseum**.
+
+```bash
+# Launch or regenerate the interactive browser
+python scripts/generate_browser.py
+# Open browser.html directly in any web browser!
+```
 
 ---
 

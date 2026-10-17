@@ -130,9 +130,12 @@ All AI agents and developers implementing features in ArtStylometry must adhere 
 5. **`Clustering` (`src/clustering/`)**:
    - `dimension_reduction.py`: Projects high-dimensional artwork descriptors to 2D/3D manifolds via UMAP / PCA.
    - `clusterer.py`: Performs density-based clustering via HDBSCAN to segregate artist clusters and isolate contested works into noise classes.
-6. **`Visualization` (`src/visualization/`)**:
+6. **`Visualization & Reporting` (`src/visualization/`)**:
    - `heatmap_overlay.py`: Blends attribution confidence heatmaps with original artwork pixels.
    - `dashboard.py`: Exports interactive HTML/JavaScript visual exploration interfaces.
+7. **`Artwork Browser & Navigator` (`src/browser/`)**:
+   - `catalog_data.py`: Curated benchmark records from Musée du Louvre, Smithsonian, and Rijksmuseum with empirical confidence metrics and famous historical misattributions.
+   - `renderer.py`: Compiles standalone, zero-dependency interactive artwork explorer (`browser.html`) supporting chronological and alphabetical sorting, real-time search, interactive heatmap overlays, and case-study filters.
 
 ---
 

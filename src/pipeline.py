@@ -195,6 +195,10 @@ def main() -> None:
     audit_parser.add_argument("--artist", default="Master", help="Name of reference artist")
     audit_parser.add_argument("--output-dir", default="data/processed/audits", help="Output directory")
 
+    # Build browser command
+    browser_parser = subparsers.add_parser("build-browser", help="Compile standalone interactive artwork browser HTML")
+    browser_parser.add_argument("--output", default="data/processed/browser.html", help="Destination HTML file path")
+
     # Cluster command
     cluster_parser = subparsers.add_parser("cluster", help="Cluster a collection of artworks")
     cluster_parser.add_argument("--images", required=True, nargs="+", help="Paths to painting images")
@@ -204,7 +208,12 @@ def main() -> None:
 
     pipeline = ArtStylometryPipeline()
 
-    if args.command == "audit":
+    if args.command == "build-browser":
+        from .browser.renderer import ArtworkBrowserRenderer
+        renderer = ArtworkBrowserRenderer()
+        out_path = renderer.export(args.output)
+        print(f"[OK] Compiled interactive artwork browser to: {out_path}")
+    elif args.command == "audit":
         profile = pipeline.build_artist_profile(args.artist, args.references)
         report = pipeline.audit_artwork(args.artwork, profile, args.output_dir)
         print(f"Report written to: {report}")
