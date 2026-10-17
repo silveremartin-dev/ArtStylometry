@@ -1,0 +1,25 @@
+# Core Scientific & Deep Learning Stack
+numpy>=1.24.0
+scipy>=1.10.0
+torch>=2.0.0
+torchvision>=0.15.0
+scikit-learn>=1.2.0
+scikit-image>=0.20.0
+pillow>=9.5.0
+opencv-python>=4.7.0
+
+# Dimension Reduction & Clustering
+umap-learn>=0.5.3
+hdbscan>=0.8.29
+
+# Network & Museum Data Harvesting (IIIF)
+requests>=2.28.0
+urllib3>=1.26.0
+tqdm>=4.65.0
+
+# Visualization & Reporting
+matplotlib>=3.7.0
+rich>=13.0.0
+
+# Testing & Quality Assurance
+pytest>=7.3.0
