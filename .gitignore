@@ -49,6 +49,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Scratch & generated audits
+scratch/audits/
+
 # Environments
 .env
 .venv

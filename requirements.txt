@@ -5,7 +5,7 @@ torch>=2.0.0
 torchvision>=0.15.0
 scikit-learn>=1.2.0
 scikit-image>=0.20.0
-pillow>=9.5.0
+pillow>=10.3.0
 opencv-python>=4.7.0
 
 # Dimension Reduction & Clustering
@@ -13,8 +13,8 @@ umap-learn>=0.5.3
 hdbscan>=0.8.29
 
 # Network & Museum Data Harvesting (IIIF)
-requests>=2.28.0
-urllib3>=1.26.0
+requests>=2.31.0
+urllib3>=1.26.18
 tqdm>=4.65.0
 
 # Visualization & Reporting

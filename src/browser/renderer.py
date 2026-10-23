@@ -918,7 +918,7 @@ class ArtworkBrowserRenderer:
                 entry_dict["artworks"].append(art_dict)
             catalog_dicts.append(entry_dict)
 
-        catalog_json = json.dumps(catalog_dicts, ensure_ascii=False)
+        catalog_json = json.dumps(catalog_dicts, ensure_ascii=False).replace("</", "<\\/")
         template = Template(HTML_TEMPLATE)
         return template.render(catalog_json=catalog_json)
 

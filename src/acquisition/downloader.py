@@ -137,6 +137,12 @@ class CanvasReconstructor:
             scale,
         )
 
+        MAX_PIXELS = 100_000_000  # 100 MP limit to prevent Decompression Bomb / Out-Of-Memory DoS
+        if out_w * out_h > MAX_PIXELS:
+            raise ValueError(
+                f"Requested canvas dimensions ({out_w}x{out_h} = {out_w * out_h} pixels) exceed safety limit of {MAX_PIXELS} pixels."
+            )
+
         canvas = Image.new("RGB", (out_w, out_h), (0, 0, 0))
 
         y_steps = range(by, by + bh, eff_tile_h)
