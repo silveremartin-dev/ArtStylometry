@@ -204,7 +204,6 @@ pytest -v tests/
 ```
 ArtStylometry/
 ├── AGENTS.md                       # Developer & AI agent collaboration directives
-├── PROJECT_STATE.md                # Session memory & completed assets inventory
 ├── README.md                       # Master overview, visual presentation & benchmarks
 ├── LICENSE                         # MIT License
 ├── requirements.txt                # Python dependencies
