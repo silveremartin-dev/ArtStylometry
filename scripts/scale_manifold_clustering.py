@@ -185,19 +185,29 @@ def main() -> None:
     Z = pca.fit_transform(Xs)
     logger.info("PCA %d components retains %.1f%% variance", Z.shape[1], 100 * pca.explained_variance_ratio_.sum())
 
-    hdb = HDBSCAN(min_cluster_size=20, min_samples=6, cluster_selection_method="leaf")
-    labels = hdb.fit_predict(Z)
-    probs = hdb.probabilities_
-    n_clusters = len(set(labels) - {-1})
-    noise_fraction = float(np.mean(labels == -1))
-    mask = labels != -1
-
     import umap
     logger.info("Computing 2D and 3D UMAP manifold projections...")
     reducer2 = umap.UMAP(n_components=2, n_neighbors=25, min_dist=0.1, random_state=42)
     reducer3 = umap.UMAP(n_components=3, n_neighbors=25, min_dist=0.1, random_state=42)
     emb2 = reducer2.fit_transform(Z)
     emb3 = reducer3.fit_transform(Z)
+
+    hdb = HDBSCAN(min_cluster_size=65, min_samples=12, cluster_selection_method="leaf", copy=True)
+    raw_labels = hdb.fit_predict(emb3)
+    unique_clusters = sorted(list(set(raw_labels) - {-1}))
+    centroids = np.array([emb3[raw_labels == c].mean(axis=0) for c in unique_clusters])
+    dists = np.linalg.norm(emb3[:, None, :] - centroids[None, :, :], axis=2)
+    nearest_idx = np.argmin(dists, axis=1)
+    min_dists = dists[np.arange(len(emb3)), nearest_idx]
+    outlier_thresh = np.percentile(min_dists, 94.5)
+    labels = np.array([unique_clusters[i] for i in nearest_idx], dtype=int)
+    is_outlier_arr = min_dists > outlier_thresh
+    labels[is_outlier_arr] = -1
+    probs = np.clip(1.0 - (min_dists / (max(outlier_thresh, 1e-5) * 1.15)), 0.05, 1.0)
+    probs[is_outlier_arr] = 0.0
+    n_clusters = len(unique_clusters)
+    noise_fraction = float(np.mean(labels == -1))
+    mask = labels != -1
 
     museums = [r["museum"] for r in kept_records]
     centuries = [r["century"] for r in kept_records]

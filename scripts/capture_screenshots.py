@@ -52,7 +52,7 @@ def capture_all_views() -> None:
         time.sleep(3)
         # Click on All Divergences pill
         try:
-            page.click("button:has-text('All Divergences')")
+            page.click("button.status-pill-divergence")
             time.sleep(1)
         except Exception as e:
             print("    Warning clicking filter:", e)

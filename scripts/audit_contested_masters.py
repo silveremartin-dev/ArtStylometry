@@ -98,6 +98,50 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         .status-pill-demoted.active { background: #f43f5e; color: #fff; border-color: #f43f5e; }
         .status-pill-promoted.active { background: #10b981; color: #0b1120; border-color: #10b981; }
 
+        /* CUSTOM INSTANT HOVER TOOLTIPS */
+        [data-tooltip] { position: relative; }
+        [data-tooltip]::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 380px;
+            background: #020617;
+            color: #f8fafc;
+            border: 1px solid #38bdf8;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            line-height: 1.45;
+            white-space: normal;
+            text-align: left;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.85);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            pointer-events: none;
+            z-index: 9000;
+        }
+        [data-tooltip]:hover::before {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .verdict-explainer-box {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid #334155;
+            border-left: 4px solid var(--accent-cyan);
+            border-radius: 8px;
+            padding: 0.65rem 1rem;
+            font-size: 0.82rem;
+            color: #e2e8f0;
+            line-height: 1.5;
+            transition: all 0.2s ease;
+        }
+
         .search-input {
             flex: 1;
             min-width: 250px;
@@ -381,15 +425,22 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         <!-- ROW 2: CONNOISSEURSHIP FINDINGS & DIVERGENCES -->
         <div class="filter-row" style="border-top: 1px solid #1e293b; padding-top: 0.75rem;">
             <span class="filter-label">⚖️ Verdict:</span>
-            <button class="status-pill active" onclick="filterByStatus('all', this)">All Works</button>
-            <button class="status-pill status-pill-divergence" onclick="filterByStatus('Divergences', this)">⚡ All Divergences (108)</button>
-            <button class="status-pill status-pill-demoted" onclick="filterByStatus('Demoted', this)">⚠️ Canon Flagged as Anomaly (91)</button>
-            <button class="status-pill status-pill-promoted" onclick="filterByStatus('Promoted', this)">✨ Disputed Promoted to Master (17)</button>
-            <button class="status-pill" onclick="filterByStatus('Canonical Master', this)">🏛️ Consensus Autograph (902)</button>
-            <button class="status-pill" onclick="filterByStatus('Studio / Assistant', this)">👥 Consensus Studio (127)</button>
+            <button class="status-pill active" onclick="filterByStatus('all', this)" onmouseenter="previewVerdict('all')" onmouseleave="restoreVerdict()" data-tooltip="Display all 1,137 paintings across the 12 workshops regardless of attribution status.">All Works (1,137)</button>
+            <button class="status-pill status-pill-divergence" onclick="filterByStatus('Divergences', this)" onmouseenter="previewVerdict('Divergences')" onmouseleave="restoreVerdict()" data-tooltip="ALL DISAGREEMENTS (91 Demotions + 17 Promotions): Works where our quantitative brushwork analysis contradicts the museum catalog in either direction.">⚡ All Catalog ≠ AI Disagreements (108)</button>
+            <button class="status-pill status-pill-demoted" onclick="filterByStatus('Demoted', this)" onmouseenter="previewVerdict('Demoted')" onmouseleave="restoreVerdict()" data-tooltip="DIRECTION 1 — DOUBTFUL MASTERWORK (Attributed to Master, but AI says NOT by him): Officially catalogued under the Master's name, but flagged by our engine as a statistical brushwork anomaly (likely pupil, copyist, or heavy restoration).">🚨 Catalog: "Master" ➔ AI: "Not Him / Outlier" (91)</button>
+            <button class="status-pill status-pill-promoted" onclick="filterByStatus('Promoted', this)" onmouseenter="previewVerdict('Promoted')" onmouseleave="restoreVerdict()" data-tooltip="DIRECTION 2 — REDISCOVERED MASTERWORK (Attributed to Workshop/Imitator, but AI says IT IS by the Master): Catalogued cautiously as 'Workshop', 'Follower', or 'Imitator', but its micro-facture matches the Master's authentic touch (>75% confidence).">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" (17)</button>
+            <button class="status-pill" onclick="filterByStatus('Canonical Master', this)" onmouseenter="previewVerdict('Canonical Master')" onmouseleave="restoreVerdict()" data-tooltip="CONFIRMED MASTERWORKS: Both the museum catalog AND our stylometry engine agree that the painting is an authentic work by the Master.">🏛️ Confirmed Masterworks (902)</button>
+            <button class="status-pill" onclick="filterByStatus('Studio / Assistant', this)" onmouseenter="previewVerdict('Studio / Assistant')" onmouseleave="restoreVerdict()" data-tooltip="CONFIRMED STUDIO / FOLLOWER: Both the museum catalog AND our stylometry engine agree that the painting was executed by a workshop assistant, pupil, or follower.">👥 Confirmed Workshop / Studio (127)</button>
             
             <input type="text" id="auditSearchInput" class="search-input" placeholder="🔍 Search title, museum, year, rationale..." oninput="handleAuditSearch()" />
             <div id="filterCountBadge" style="font-size:0.85rem; font-weight:700; color:var(--accent-cyan);">1,137 Artworks Displayed</div>
+        </div>
+
+        <!-- DYNAMIC EXPLANATION BANNER FOR ANOMALY DIRECTION -->
+        <div id="verdictExplainerBox" class="verdict-explainer-box">
+            💡 <b>How to read the Anomalies (Hover over any button above):</b> There are two opposite types of anomalies:
+            <span style="color:#fb7185; font-weight:700;">🚨 Catalog: "Master" ➔ AI: "Not Him" (91)</span> are works officially attributed to the Master that our engine flags as doubtful/studio hands, whereas
+            <span style="color:#34d399; font-weight:700;">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" (17)</span> are works downgraded to pupils/followers that our engine rehabilitates as authentic Master touch.
         </div>
     </div>
 
@@ -402,10 +453,10 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
                 <div class="artist-meta">Manifold Shrinkage: {{ "%.4f"|format(summary.reference_shrinkage) }} &bull; Outlier Threshold: {{ "%.2f"|format(summary.outlier_distance_threshold) }} M-dist</div>
             </div>
             <div class="stat-badges">
-                <span class="stat-badge badge-total" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'all')">{{ summary.total_artworks_evaluated }} Audited</span>
-                <span class="stat-badge badge-canonical" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'Canonical Master')">{{ summary.consensus_autograph_count }} Canonical Master</span>
-                <span class="stat-badge badge-divergence" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'Divergences')">⚡ {{ summary.high_controversy_count }} Controversies</span>
-                <span class="stat-badge badge-outlier" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'Demoted')">⚠️ {{ summary.black_sheep_outlier_count }} Outliers</span>
+                <span class="stat-badge badge-total" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'all')" data-tooltip="Show all audited paintings in {{ summary.artist_name }}'s corpus.">{{ summary.total_artworks_evaluated }} Audited</span>
+                <span class="stat-badge badge-canonical" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'Canonical Master')" data-tooltip="Confirmed Masterworks: Museum attributes to {{ summary.artist_name }} AND our stylometry engine confirms canonical brushwork.">{{ summary.consensus_autograph_count }} Canonical Master</span>
+                <span class="stat-badge badge-divergence" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'Divergences')" data-tooltip="All Disagreements between Museum Catalog and AI Stylometry (both Demoted doubtful works and Promoted workshop works).">⚡ {{ summary.high_controversy_count }} Catalog ≠ AI</span>
+                <span class="stat-badge badge-outlier" onclick="filterByArtistAndStatus('{{ summary.artist_name }}', 'Demoted')" data-tooltip="Doubtful / Outliers: Attributed to {{ summary.artist_name }} by the museum, but flagged by our engine as a statistical brushwork anomaly (likely pupil, follower, or copy).">🚨 {{ summary.black_sheep_outlier_count }} Doubtful / Outliers</span>
             </div>
         </div>
 
@@ -414,12 +465,12 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             <div class="art-card {% if art.is_black_sheep %}is-mouton-noir{% endif %} {% if art.divergence_type == 'PROMOTED_AUTOGRAPH' %}is-divergence-promoted{% endif %}" data-divergence="{{ art.divergence_type }}">
                 
                 {% if art.divergence_type == 'DEMOTED_ANOMALY' %}
-                <div class="divergence-banner banner-demoted">
-                    ⚠️ HIGH-CONTROVERSY: Museum Canon Flagged as Statistical Outlier (p={{ "%.3f"|format(art.conformal_p_value) }})
+                <div class="divergence-banner banner-demoted" data-tooltip="DIRECTION 1 (DOUBTFUL AUTHENTICITY): The museum catalog attributes this painting to the Master, but our stylometry engine detects a strong brushwork anomaly (likely executed by a pupil, follower, imitator, or heavily restored).">
+                    🚨 CATALOG: "MASTER" ➔ AI: "DOUBTFUL / NOT HIS HAND" (Outlier p={{ "%.3f"|format(art.conformal_p_value) }})
                 </div>
                 {% elif art.divergence_type == 'PROMOTED_AUTOGRAPH' %}
-                <div class="divergence-banner banner-promoted">
-                    ✨ RE-ATTRIBUTION: Studio/Disputed Re-Evaluated as Autograph Quality ({{ (art.attribution_confidence * 100)|round }}%)
+                <div class="divergence-banner banner-promoted" data-tooltip="DIRECTION 2 (REDISCOVERED MASTERWORK): The museum catalog cautiously downgrades this work to Workshop/Follower/Imitator, but our stylometry engine shows its brushwork matches the Master's authentic core.">
+                    ✨ CATALOG: "WORKSHOP/DISPUTED" ➔ AI: "MASTER'S HAND!" ({{ (art.attribution_confidence * 100)|round }}% Match)
                 </div>
                 {% endif %}
 
@@ -1014,6 +1065,29 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     let currentStatus = 'all';
     let currentQuery = '';
 
+    const VERDICT_EXPLANATIONS = {
+        'all': `💡 <b>How to read the Anomalies (Hover over any button above):</b> There are two opposite types of anomalies: <span style="color:#fb7185; font-weight:700;">🚨 Catalog: "Master" ➔ AI: "Not Him" (91)</span> are works officially attributed to the Master that our engine flags as doubtful/studio hands, whereas <span style="color:#34d399; font-weight:700;">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" (17)</span> are works downgraded to pupils/followers that our engine rehabilitates as authentic Master touch.`,
+        'Divergences': `⚡ <b>ALL CATALOG ≠ AI DISAGREEMENTS (108 Paintings = 91 Doubtful Masterworks + 17 Rehabilitated Workshop Works):</b> Displays every painting where quantitative brushwork stylometry contradicts the official museum attribution in either direction.`,
+        'Demoted': `🚨 <b>DIRECTION 1 — ATTRIBUTED TO MASTER, BUT AI SAYS "DOUBTFUL / NOT BY HIM" (91 Paintings):</b> These paintings are officially attributed to the Master in museum catalogs, <b>but</b> our engine detects a severe statistical departure in brushwork ductility and facture ($p < 0.05$). They were likely painted by a workshop pupil, follower, copyist, or heavily overpainted.`,
+        'Promoted': `✨ <b>DIRECTION 2 — ATTRIBUTED TO WORKSHOP/FOLLOWER, BUT AI SAYS "BY THE MASTER!" (17 Paintings):</b> These paintings are cautiously downgraded by museums to <i>"Workshop of"</i>, <i>"Follower of"</i>, or <i>"Imitator"</i>, <b>but</b> our engine proves their micro-facture and brushstroke fluency match the Master's authentic canonical core (>75% confidence).`,
+        'Canonical Master': `🏛️ <b>CONFIRMED MASTERWORKS (902 Paintings):</b> Complete agreement between Art History and AI — officially attributed to the Master by the museum AND confirmed within the Master's canonical brushwork manifold by our engine.`,
+        'Studio / Assistant': `👥 <b>CONFIRMED WORKSHOP / FOLLOWER HANDS (127 Paintings):</b> Complete agreement — catalogued as secondary studio/pupil/follower works AND confirmed by our engine as outside the Master's personal autograph core.`
+    };
+
+    function previewVerdict(status) {
+        const box = document.getElementById('verdictExplainerBox');
+        if (!box) return;
+        box.innerHTML = VERDICT_EXPLANATIONS[status] || VERDICT_EXPLANATIONS['all'];
+        if (status === 'Demoted') box.style.borderLeftColor = '#f43f5e';
+        else if (status === 'Promoted' || status === 'Canonical Master') box.style.borderLeftColor = '#10b981';
+        else if (status === 'Divergences') box.style.borderLeftColor = '#c084fc';
+        else box.style.borderLeftColor = '#38bdf8';
+    }
+
+    function restoreVerdict() {
+        previewVerdict(currentStatus || 'all');
+    }
+
     function filterByArtist(artist, btn) {
         document.querySelectorAll('.artist-pill').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
@@ -1025,6 +1099,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         document.querySelectorAll('.status-pill').forEach(b => b.classList.remove('active'));
         if (btn) btn.classList.add('active');
         currentStatus = status;
+        previewVerdict(status);
         applyFilters();
     }
 
@@ -1042,12 +1117,13 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         // Select status pill
         document.querySelectorAll('.status-pill').forEach(b => {
             if (status === 'all' && b.textContent.includes('All Works')) b.classList.add('active');
-            else if (status === 'Canonical Master' && b.textContent.includes('Consensus Autograph')) b.classList.add('active');
-            else if (status === 'Divergences' && b.textContent.includes('All Divergences')) b.classList.add('active');
-            else if (status === 'Demoted' && b.textContent.includes('Canon Flagged')) b.classList.add('active');
+            else if (status === 'Canonical Master' && b.textContent.includes('Confirmed Masterworks')) b.classList.add('active');
+            else if (status === 'Divergences' && b.textContent.includes('Disagreements')) b.classList.add('active');
+            else if (status === 'Demoted' && b.textContent.includes('Not Him')) b.classList.add('active');
             else b.classList.remove('active');
         });
         currentStatus = status;
+        previewVerdict(status);
         applyFilters();
 
         // Scroll to artist section
