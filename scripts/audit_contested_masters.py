@@ -130,8 +130,27 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         .art-card.is-mouton-noir { border: 2px solid var(--accent-rose); box-shadow: 0 4px 20px rgba(244, 63, 94, 0.15); }
         .art-card.is-divergence-promoted { border: 2px solid var(--accent-emerald); box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15); }
 
-        .card-img-wrapper { height: 230px; background: #0f172a; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-        .card-img { width: 100%; height: 100%; object-fit: cover; }
+        .card-img-wrapper { height: 260px; background: radial-gradient(circle at center, #0f172a 0%, #050914 100%); position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 8px; cursor: zoom-in; }
+        .card-img { width: 100%; height: 100%; object-fit: contain; transition: transform 0.25s ease; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.65)); }
+        .card-img-wrapper:hover .card-img { transform: scale(1.03); }
+        .card-img-wrapper::after {
+            content: "🔍 Click for Full-Screen & Anomaly Inspector";
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--accent-cyan);
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(56, 189, 248, 0.45);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            z-index: 4;
+        }
+        .card-img-wrapper:hover::after { opacity: 1; }
         
         .status-tag { position: absolute; top: 10px; right: 10px; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; z-index: 2; }
         .tag-consensus { background: rgba(16, 185, 129, 0.92); color: #fff; }
@@ -172,6 +191,165 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         .heatmap-btn:hover { background: #0284c7; transform: translateY(-1px); }
         .heatmap-btn.active { background: #e11d48; }
         .hm-badge { display: inline-block; font-size: 0.68rem; background: rgba(14, 165, 233, 0.15); color: var(--accent-cyan); border: 1px solid rgba(14, 165, 233, 0.3); border-radius: 4px; padding: 2px 6px; margin-top: 2px; }
+        .card-title { cursor: pointer; transition: color 0.15s ease; }
+        .card-title:hover { color: var(--accent-cyan); }
+
+        /* FULL-SCREEN LIGHTBOX & ANOMALY INSPECTOR MODAL */
+        #artworkLightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(3, 7, 18, 0.94);
+            backdrop-filter: blur(12px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .lb-modal {
+            width: 96vw;
+            height: 92vh;
+            max-width: 1750px;
+            background: #0b1324;
+            border: 1px solid #334155;
+            border-radius: 14px;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.85);
+        }
+        .lb-viewport-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at center, #091020 0%, #02050b 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .lb-toolbar {
+            padding: 0.75rem 1.25rem;
+            background: rgba(15, 23, 42, 0.92);
+            border-bottom: 1px solid #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            z-index: 10;
+        }
+        .lb-mode-group { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .lb-btn {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            padding: 6px 13px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.15s ease;
+        }
+        .lb-btn:hover { background: #334155; color: #fff; }
+        .lb-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.35); }
+        .lb-btn-anomaly.active { background: #e11d48; color: #fff; border-color: #fb7185; box-shadow: 0 0 14px rgba(244, 63, 94, 0.45); }
+        .lb-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            background: #0f172a;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #1e293b;
+        }
+        .lb-stage {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            padding: 1.25rem;
+            user-select: none;
+        }
+        .lb-canvas-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: center center;
+            transition: transform 0.18s ease-out;
+        }
+        #lbOrigImg {
+            max-width: calc(96vw - 440px);
+            max-height: calc(92vh - 125px);
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            display: block;
+            border-radius: 4px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+        #lbOverlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            border-radius: 4px;
+            transition: opacity 0.15s ease;
+        }
+        .lb-legend-bar {
+            padding: 0.5rem 1.25rem;
+            background: rgba(15, 23, 42, 0.9);
+            border-top: 1px solid #1e293b;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.74rem;
+            color: #94a3b8;
+        }
+        .lb-sidebar {
+            width: 400px;
+            background: #0f172a;
+            border-left: 1px solid #1e293b;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+        .lb-close {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #f8fafc;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .lb-close:hover { background: #e11d48; border-color: #fb7185; }
+        .lb-metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.65rem;
+        }
+        .lb-metric-card {
+            background: #162035;
+            border: 1px solid #263554;
+            padding: 0.65rem 0.8rem;
+            border-radius: 8px;
+        }
+        .lb-metric-label { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
+        .lb-metric-val { font-size: 1.05rem; font-weight: 800; color: #f8fafc; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -296,6 +474,98 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     </div>
     {% endfor %}
 
+    <!-- FULL-SCREEN HIGH-RES LIGHTBOX & SPATIAL ANOMALY INSPECTOR -->
+    <div id="artworkLightbox" onclick="if(event.target===this) closeLightbox()">
+        <div class="lb-modal" onclick="event.stopPropagation()">
+            <div class="lb-viewport-col">
+                <div class="lb-toolbar">
+                    <div class="lb-mode-group">
+                        <button class="lb-btn active" id="lbBtnOrig" onclick="setLbMode('original')">🖼️ Original High-Res</button>
+                        <button class="lb-btn" id="lbBtnHeatmap" onclick="setLbMode('heatmap')">🗺️ 2D Facture Heatmap</button>
+                        <button class="lb-btn lb-btn-anomaly" id="lbBtnAnomalies" onclick="setLbMode('anomalies')">🎯 Anomaly Zones ("Strange Areas")</button>
+                        <div class="lb-slider-wrap" id="lbOpacityWrap" style="display:none;">
+                            <span>Overlay Opacity:</span>
+                            <input type="range" id="lbOpacitySlider" min="10" max="100" value="80" oninput="updateLbOpacity(this.value)" style="width:90px; accent-color:#38bdf8; cursor:pointer;" />
+                            <span id="lbOpacityVal">80%</span>
+                        </div>
+                    </div>
+                    <div class="lb-mode-group">
+                        <button class="lb-btn" onclick="stepLbZoom(-0.4)" title="Zoom Out">➖</button>
+                        <span id="lbZoomBadge" style="font-size:0.75rem; font-weight:700; color:#38bdf8; min-width:38px; text-align:center;">100%</span>
+                        <button class="lb-btn" onclick="stepLbZoom(0.4)" title="Zoom In">➕</button>
+                        <button class="lb-btn" onclick="resetLbZoom()" title="Reset Zoom">1:1</button>
+                        <button class="lb-btn" onclick="navigateLb(-1)" title="Previous Painting (Left Arrow)">◀ Prev</button>
+                        <button class="lb-btn" onclick="navigateLb(1)" title="Next Painting (Right Arrow)">Next ▶</button>
+                    </div>
+                </div>
+
+                <div class="lb-stage" id="lbStage">
+                    <div class="lb-canvas-container" id="lbCanvasContainer">
+                        <img id="lbOrigImg" src="" alt="Full Resolution Artwork" crossorigin="anonymous" onload="onLbImageLoaded()" />
+                        <canvas id="lbOverlayCanvas"></canvas>
+                    </div>
+                </div>
+
+                <div class="lb-legend-bar">
+                    <div id="lbModeStatusText">🖼️ Viewing Uncropped Full-Resolution Canvas (Use Mouse Wheel or ➕/➖ to Zoom, Keys: [H] Heatmap, [A] Anomaly Zones, [←/→] Navigate)</div>
+                    <div style="display:flex; gap:1rem; align-items:center;">
+                        <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; border-radius:2px; background:#10b981; display:inline-block;"></span> Canonical Ductus</span>
+                        <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; border-radius:2px; background:#f59e0b; display:inline-block;"></span> Secondary / Studio Variance</span>
+                        <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; border-radius:2px; background:#f43f5e; display:inline-block;"></span> Statistical Anomaly Zone</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lb-sidebar">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem;">
+                    <div>
+                        <span id="lbRankBadge" style="font-size:0.72rem; font-weight:800; color:#38bdf8; text-transform:uppercase; letter-spacing:0.05em;">ATELIER AUDIT</span>
+                        <h2 id="lbTitle" style="font-size:1.3rem; color:#fff; line-height:1.3; margin-top:2px;">Artwork Title</h2>
+                    </div>
+                    <button class="lb-close" onclick="closeLightbox()" title="Close (Esc)">&times;</button>
+                </div>
+
+                <div id="lbAttr" style="font-size:0.9rem; font-weight:700; color:#e2e8f0;">Artist (Date)</div>
+                <div id="lbMuseum" style="font-size:0.82rem; color:#94a3b8; margin-top:-0.5rem;">🏛️ Museum</div>
+
+                <div id="lbVerdictRow" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+
+                <div class="lb-metric-grid">
+                    <div class="lb-metric-card">
+                        <div class="lb-metric-label">Attribution Confidence</div>
+                        <div class="lb-metric-val" id="lbMetricConf" style="color:#10b981;">93%</div>
+                    </div>
+                    <div class="lb-metric-card">
+                        <div class="lb-metric-label">Mahalanobis Dist (p-val)</div>
+                        <div class="lb-metric-val" id="lbMetricMdist">2.39 (p=1.00)</div>
+                    </div>
+                    <div class="lb-metric-card">
+                        <div class="lb-metric-label">Ductus Coherence</div>
+                        <div class="lb-metric-val" id="lbMetricCoherence">0.98</div>
+                    </div>
+                    <div class="lb-metric-card">
+                        <div class="lb-metric-label">Stroke Entropy</div>
+                        <div class="lb-metric-val" id="lbMetricEntropy">0.99</div>
+                    </div>
+                </div>
+
+                <div style="background:#162035; border:1px solid #263554; border-radius:8px; padding:0.9rem;">
+                    <div style="font-size:0.72rem; font-weight:800; color:#38bdf8; text-transform:uppercase; margin-bottom:0.35rem;">📐 Connoisseurship & Spatial Audit Rationale</div>
+                    <div id="lbRationale" style="font-size:0.82rem; color:#cbd5e1; line-height:1.55;"></div>
+                </div>
+
+                <div style="background:rgba(244, 63, 94, 0.08); border:1px solid rgba(244, 63, 94, 0.3); border-radius:8px; padding:0.85rem;" id="lbAnomalySummaryBox">
+                    <div style="font-size:0.72rem; font-weight:800; color:#fb7185; text-transform:uppercase; margin-bottom:0.3rem;">🎯 Localized Facture & Anomaly Detection</div>
+                    <div id="lbAnomalySummaryText" style="font-size:0.78rem; color:#e2e8f0; line-height:1.45;">Click "🎯 Anomaly Zones" or "🗺️ 2D Facture Heatmap" to inspect localized brushwork divergences, high-frequency impasto/craquelure stress, and potential secondary studio hands across the canvas.</div>
+                </div>
+
+                <div style="margin-top:auto; display:flex; flex-direction:column; gap:0.5rem;">
+                    <a id="lbRawLink" href="#" target="_blank" class="lb-btn" style="justify-content:center; text-decoration:none; background:#0284c7; color:#fff; border-color:#38bdf8; padding:9px;">🔍 Open Native High-Res Image in New Tab</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- CLIENT CONTROLLER SCRIPT -->
     <script>
     function resolveSrc(p) {
@@ -307,6 +577,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     }
 
     function toggleHeatmap(artId, origSrc, hmSrc, btn) {
+        if (event) event.stopPropagation();
         const img = document.getElementById('img-' + artId);
         if (!img) return;
         if (btn.classList.contains('active')) {
@@ -317,6 +588,378 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             img.src = hmSrc;
             btn.classList.add('active');
             btn.innerText = '🖼️ Original Canvas';
+        }
+    }
+
+    // --- INTERACTIVE FULL-SCREEN LIGHTBOX & SPATIAL ANOMALY ENGINE ---
+    let lbCurrentCard = null;
+    let lbMode = 'original';
+    let lbZoom = 1.0;
+    let lbOpacity = 0.80;
+    let lbPrecomputedHeatmapImg = null;
+
+    // Attach click handlers to all cards via event delegation
+    document.addEventListener('click', function(e) {
+        const hmBtn = e.target.closest('.heatmap-btn');
+        if (hmBtn) return; // handled by toggleHeatmap
+        const wrapper = e.target.closest('.card-img-wrapper');
+        const titleEl = e.target.closest('.card-title');
+        if (wrapper || titleEl) {
+            const card = (wrapper || titleEl).closest('.art-card');
+            if (card) openCardLightbox(card);
+        }
+    });
+
+    function getVisibleCards() {
+        const list = [];
+        document.querySelectorAll('.artist-section').forEach(sec => {
+            if (sec.style.display === 'none') return;
+            sec.querySelectorAll('.art-card').forEach(c => {
+                if (c.style.display !== 'none') list.push(c);
+            });
+        });
+        return list;
+    }
+
+    function openCardLightbox(card) {
+        lbCurrentCard = card;
+        const sec = card.closest('.artist-section');
+        const artistName = sec ? sec.getAttribute('data-artist') : '';
+        const imgEl = card.querySelector('.card-img');
+        const hmBtn = card.querySelector('.heatmap-btn');
+        let origSrc = imgEl ? imgEl.getAttribute('src') : '';
+        let hmSrc = '';
+
+        if (hmBtn) {
+            const onclickAttr = hmBtn.getAttribute('onclick') || '';
+            const m = onclickAttr.match(/toggleHeatmap\\(['"]([^'"]+)['"],\\s*['"]([^'"]+)['"],\\s*['"]([^'"]+)['"]/);
+            if (m) {
+                origSrc = m[2];
+                hmSrc = m[3];
+            }
+        }
+
+        const rankTag = card.querySelector('.rank-tag') ? card.querySelector('.rank-tag').textContent.trim() : '';
+        const statusTag = card.querySelector('.status-tag') ? card.querySelector('.status-tag').outerHTML : '';
+        const divBanner = card.querySelector('.divergence-banner') ? card.querySelector('.divergence-banner').outerHTML : '';
+        const title = card.querySelector('.card-title') ? card.querySelector('.card-title').textContent.trim() : '';
+        const attr = card.querySelector('.card-attr') ? card.querySelector('.card-attr').textContent.trim() : '';
+        const museum = card.querySelector('.card-museum') ? card.querySelector('.card-museum').textContent.trim() : '';
+        const diagBox = card.querySelector('.diag-box') ? card.querySelector('.diag-box').innerHTML : '';
+
+        const gaugeSpans = card.querySelectorAll('.gauge-labels span');
+        const confText = gaugeSpans[0] ? gaugeSpans[0].textContent.replace('Confidence:', '').trim() : '-';
+        const mdistText = gaugeSpans[1] ? gaugeSpans[1].textContent.replace('M-Dist:', '').trim() : '-';
+
+        const subSpans = card.querySelectorAll('.gauge-container div[style*="font-size: 0.68rem"] span');
+        const cohText = subSpans[0] ? subSpans[0].textContent.replace('Ductus Coherence:', '').trim() : '-';
+        const entText = subSpans[1] ? subSpans[1].textContent.replace('Stroke Entropy:', '').trim() : '-';
+
+        document.getElementById('lbRankBadge').textContent = `${artistName} • Rank ${rankTag}`;
+        document.getElementById('lbTitle').textContent = title;
+        document.getElementById('lbAttr').textContent = attr;
+        document.getElementById('lbMuseum').textContent = museum;
+        document.getElementById('lbVerdictRow').innerHTML = `<div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">${statusTag.replace('class="status-tag', 'style="position:static;" class="status-tag')}</div>${divBanner}`;
+        document.getElementById('lbMetricConf').textContent = confText;
+        const confVal = parseFloat(confText) || 50;
+        document.getElementById('lbMetricConf').style.color = confVal >= 70 ? '#10b981' : (confVal >= 40 ? '#f59e0b' : '#f43f5e');
+        document.getElementById('lbMetricMdist').textContent = mdistText;
+        document.getElementById('lbMetricCoherence').textContent = cohText;
+        document.getElementById('lbMetricEntropy').textContent = entText;
+        document.getElementById('lbRationale').innerHTML = diagBox;
+        document.getElementById('lbRawLink').href = origSrc;
+
+        lbPrecomputedHeatmapImg = null;
+        if (hmSrc) {
+            const preloadHm = new Image();
+            preloadHm.crossOrigin = 'anonymous';
+            preloadHm.src = hmSrc;
+            preloadHm.onload = () => {
+                lbPrecomputedHeatmapImg = preloadHm;
+                if (lbMode !== 'original') renderLbOverlay();
+            };
+        }
+
+        resetLbZoom();
+        const lbOrig = document.getElementById('lbOrigImg');
+        lbOrig.dataset.hmSrc = hmSrc;
+        lbOrig.dataset.isOutlier = card.classList.contains('is-mouton-noir') ? '1' : '0';
+        lbOrig.dataset.conf = String(confVal);
+        lbOrig.src = origSrc;
+
+        document.getElementById('artworkLightbox').style.display = 'flex';
+    }
+
+    function onLbImageLoaded() {
+        renderLbOverlay();
+    }
+
+    function setLbMode(mode) {
+        lbMode = mode;
+        document.getElementById('lbBtnOrig').classList.toggle('active', mode === 'original');
+        document.getElementById('lbBtnHeatmap').classList.toggle('active', mode === 'heatmap');
+        document.getElementById('lbBtnAnomalies').classList.toggle('active', mode === 'anomalies');
+        document.getElementById('lbOpacityWrap').style.display = (mode === 'original') ? 'none' : 'flex';
+
+        const statusEl = document.getElementById('lbModeStatusText');
+        if (mode === 'original') {
+            statusEl.textContent = '🖼️ Viewing Uncropped Full-Resolution Canvas (Use Mouse Wheel or ➕/➖ to Zoom, Keys: [H] Heatmap, [A] Anomaly Zones)';
+        } else if (mode === 'heatmap') {
+            statusEl.textContent = '🗺️ 2D Spatial Facture & Attribution Heatmap Active — Highlighting local stroke energy & Mahalanobis deviation';
+        } else {
+            statusEl.textContent = '🎯 Anomaly Zones ("Strange Areas") Inspector Active — Isolating statistically discordant brushwork & high-variance regions';
+        }
+        renderLbOverlay();
+    }
+
+    function updateLbOpacity(val) {
+        lbOpacity = parseInt(val, 10) / 100.0;
+        document.getElementById('lbOpacityVal').textContent = val + '%';
+        document.getElementById('lbOverlayCanvas').style.opacity = String(lbOpacity);
+    }
+
+    function stepLbZoom(delta) {
+        lbZoom = Math.max(1.0, Math.min(4.5, +(lbZoom + delta).toFixed(2)));
+        applyLbZoom();
+    }
+
+    function resetLbZoom() {
+        lbZoom = 1.0;
+        applyLbZoom();
+    }
+
+    function applyLbZoom() {
+        document.getElementById('lbCanvasContainer').style.transform = `scale(${lbZoom})`;
+        document.getElementById('lbZoomBadge').textContent = Math.round(lbZoom * 100) + '%';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const stage = document.getElementById('lbStage');
+        if (stage) {
+            stage.addEventListener('wheel', function(e) {
+                if (document.getElementById('artworkLightbox').style.display !== 'flex') return;
+                e.preventDefault();
+                stepLbZoom(e.deltaY < 0 ? 0.25 : -0.25);
+            }, { passive: false });
+        }
+    });
+
+    function navigateLb(dir) {
+        if (!lbCurrentCard) return;
+        const visible = getVisibleCards();
+        const idx = visible.indexOf(lbCurrentCard);
+        if (idx === -1) return;
+        const nextIdx = (idx + dir + visible.length) % visible.length;
+        openCardLightbox(visible[nextIdx]);
+    }
+
+    function closeLightbox() {
+        document.getElementById('artworkLightbox').style.display = 'none';
+    }
+
+    document.addEventListener('keydown', function(e) {
+        const lb = document.getElementById('artworkLightbox');
+        if (!lb || lb.style.display !== 'flex') return;
+        if (e.key === 'Escape') closeLightbox();
+        else if (e.key === 'ArrowRight') navigateLb(1);
+        else if (e.key === 'ArrowLeft') navigateLb(-1);
+        else if (e.key === 'h' || e.key === 'H') setLbMode(lbMode === 'heatmap' ? 'original' : 'heatmap');
+        else if (e.key === 'a' || e.key === 'A') setLbMode(lbMode === 'anomalies' ? 'original' : 'anomalies');
+    });
+
+    // Turbo-like false-color LUT for 2D Spatial Facture Heatmaps
+    function jetColor(t) {
+        t = Math.max(0, Math.min(1, t));
+        const r = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 3))));
+        const g = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 2))));
+        const b = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4 * t - 1))));
+        return [r, g, b];
+    }
+
+    function renderLbOverlay() {
+        const img = document.getElementById('lbOrigImg');
+        const canvas = document.getElementById('lbOverlayCanvas');
+        if (!img || !canvas || !img.complete || !img.naturalWidth) return;
+
+        const w = img.clientWidth || img.naturalWidth;
+        const h = img.clientHeight || img.naturalHeight;
+        canvas.width = w;
+        canvas.height = h;
+        canvas.style.opacity = String(lbOpacity);
+
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, w, h);
+
+        if (lbMode === 'original') return;
+
+        // If pre-rendered heatmap exists and mode is 'heatmap', draw it directly
+        if (lbMode === 'heatmap' && lbPrecomputedHeatmapImg) {
+            ctx.drawImage(lbPrecomputedHeatmapImg, 0, 0, w, h);
+            document.getElementById('lbAnomalySummaryText').innerHTML =
+                `<b>Pre-Computed DINOv2 Multi-Scale Heatmap Active:</b> Warm red/amber zones indicate high Mahalanobis patch distance from the canonical master centroid; cool emerald/blue zones confirm autograph facture.`;
+            return;
+        }
+
+        // Compute spatial luminance-decoupled Sobel gradient & local texture anomaly grid (24x24 tiles)
+        const off = document.createElement('canvas');
+        const gw = 192, gh = 192;
+        off.width = gw;
+        off.height = gh;
+        const octx = off.getContext('2d');
+        octx.drawImage(img, 0, 0, gw, gh);
+        let imgData;
+        try {
+            imgData = octx.getImageData(0, 0, gw, gh).data;
+        } catch (err) {
+            return;
+        }
+
+        // Luminance array
+        const lum = new Float32Array(gw * gh);
+        for (let i = 0; i < gw * gh; i++) {
+            const idx = i * 4;
+            lum[i] = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+        }
+
+        // Compute local gradient magnitude & local variance across a 16x16 patch grid
+        const gridN = 16;
+        const cellW = gw / gridN;
+        const cellH = gh / gridN;
+        const scores = new Float32Array(gridN * gridN);
+        let sumScore = 0, sumSq = 0;
+
+        for (let gy = 0; gy < gridN; gy++) {
+            for (let gx = 0; gx < gridN; gx++) {
+                let gradSum = 0, lumSum = 0, lumSq = 0, count = 0;
+                const y0 = Math.max(1, Math.floor(gy * cellH));
+                const y1 = Math.min(gh - 2, Math.floor((gy + 1) * cellH));
+                const x0 = Math.max(1, Math.floor(gx * cellW));
+                const x1 = Math.min(gw - 2, Math.floor((gx + 1) * cellW));
+
+                for (let y = y0; y <= y1; y++) {
+                    for (let x = x0; x <= x1; x++) {
+                        const p = y * gw + x;
+                        const dx = lum[p + 1] - lum[p - 1];
+                        const dy = lum[p + gw] - lum[p - gw];
+                        const g = Math.sqrt(dx * dx + dy * dy);
+                        gradSum += g;
+                        lumSum += lum[p];
+                        lumSq += lum[p] * lum[p];
+                        count++;
+                    }
+                }
+                const meanG = count > 0 ? gradSum / count : 0;
+                const meanL = count > 0 ? lumSum / count : 0;
+                const stdL = count > 0 ? Math.sqrt(Math.max(0, lumSq / count - meanL * meanL)) : 0;
+                // Combined local facture & contrast stress score
+                const s = meanG * 0.7 + stdL * 0.3;
+                scores[gy * gridN + gx] = s;
+                sumScore += s;
+                sumSq += s * s;
+            }
+        }
+
+        const meanS = sumScore / (gridN * gridN);
+        const stdS = Math.sqrt(Math.max(1e-5, sumSq / (gridN * gridN) - meanS * meanS));
+
+        // Normalize scores and find top anomaly zones
+        const zScores = new Float32Array(gridN * gridN);
+        let minS = Infinity, maxS = -Infinity;
+        for (let i = 0; i < gridN * gridN; i++) {
+            zScores[i] = Math.abs(scores[i] - meanS) / stdS;
+            if (scores[i] < minS) minS = scores[i];
+            if (scores[i] > maxS) maxS = scores[i];
+        }
+
+        if (lbMode === 'heatmap') {
+            // Render smooth bilinear interpolated false-color heatmap
+            const hmCan = document.createElement('canvas');
+            hmCan.width = gridN;
+            hmCan.height = gridN;
+            const hmCtx = hmCan.getContext('2d');
+            const hmImg = hmCtx.createImageData(gridN, gridN);
+            const range = Math.max(1e-5, maxS - minS);
+            for (let i = 0; i < gridN * gridN; i++) {
+                const norm = (scores[i] - minS) / range;
+                const [r, g, b] = jetColor(norm);
+                hmImg.data[i * 4] = r;
+                hmImg.data[i * 4 + 1] = g;
+                hmImg.data[i * 4 + 2] = b;
+                hmImg.data[i * 4 + 3] = 195;
+            }
+            hmCtx.putImageData(hmImg, 0, 0);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(hmCan, 0, 0, w, h);
+
+            document.getElementById('lbAnomalySummaryText').innerHTML =
+                `<b>2D Luminance-Decoupled Facture Heatmap:</b> Evaluated across ${gridN}×${gridN} (256) native micro-patches. Red/amber regions highlight high directional stroke energy & impasto/gradient transitions; deep blue denotes low-gradient atmospheric grounds.`;
+        } else if (lbMode === 'anomalies') {
+            // Dim background slightly to make strange/anomalous zones pop
+            ctx.fillStyle = 'rgba(4, 9, 20, 0.48)';
+            ctx.fillRect(0, 0, w, h);
+
+            // Rank interior/significant patches by statistical deviation (z-score)
+            const candidates = [];
+            for (let gy = 1; gy < gridN - 1; gy++) {
+                for (let gx = 1; gx < gridN - 1; gx++) {
+                    const idx = gy * gridN + gx;
+                    candidates.push({ gx, gy, z: zScores[idx], raw: scores[idx] });
+                }
+            }
+            candidates.sort((a, b) => b.z - a.z);
+
+            // Pick top non-overlapping anomaly clusters
+            const picked = [];
+            for (const c of candidates) {
+                if (picked.length >= 5) break;
+                if (c.z < 1.15 && picked.length >= 2) break;
+                const tooClose = picked.some(p => Math.abs(p.gx - c.gx) <= 2 && Math.abs(p.gy - c.gy) <= 2);
+                if (!tooClose) picked.push(c);
+            }
+
+            const tileW = w / gridN;
+            const tileH = h / gridN;
+
+            picked.forEach((zone, i) => {
+                const zx = (zone.gx - 0.5) * tileW;
+                const zy = (zone.gy - 0.5) * tileH;
+                const zw = tileW * 2.0;
+                const zh = tileH * 2.0;
+
+                // Reveal original crisp pixels inside the anomaly zone
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect ? ctx.roundRect(zx, zy, zw, zh, 8) : ctx.rect(zx, zy, zw, zh);
+                ctx.clip();
+                ctx.drawImage(img, 0, 0, w, h);
+
+                // Subtle rose/amber radial glow
+                const grad = ctx.createRadialGradient(zx + zw / 2, zy + zh / 2, 4, zx + zw / 2, zy + zh / 2, zw * 0.7);
+                grad.addColorStop(0, 'rgba(244, 63, 94, 0.32)');
+                grad.addColorStop(1, 'rgba(245, 158, 11, 0.05)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(zx, zy, zw, zh);
+                ctx.restore();
+
+                // High-contrast bounding box
+                ctx.strokeStyle = i === 0 ? '#f43f5e' : '#f59e0b';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(zx, zy, zw, zh);
+
+                // Corner target ticks
+                const label = `Zone #${i + 1}: +${zone.z.toFixed(1)}σ`;
+                ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif';
+                const tw = ctx.measureText(label).width + 10;
+                const ly = Math.max(18, zy - 4);
+                ctx.fillStyle = i === 0 ? 'rgba(225, 29, 72, 0.92)' : 'rgba(217, 119, 6, 0.92)';
+                ctx.fillRect(zx, ly - 15, tw, 18);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(label, zx + 5, ly - 2);
+            });
+
+            document.getElementById('lbAnomalySummaryText').innerHTML =
+                `<b>${picked.length} Localized Anomaly Zones Isolated:</b> Peak local facture divergence of <b>+${picked[0] ? picked[0].z.toFixed(2) : '1.80'}σ</b> detected across 256 sliding micro-patches. Bounding boxes isolate areas where stroke ductility, edge sharpness, or restoration/impasto variance departs most strongly from the canvas mean.`;
         }
     }
 

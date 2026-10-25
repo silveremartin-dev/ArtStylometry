@@ -230,12 +230,15 @@ Beyond canvas-level aggregate scalars, ArtStylometry generates **continuous 2D s
 * **Spatial Anomaly Detection**: Unsupervised spatial clustering automatically flags bounding-box anomaly zones ($\Delta \text{M-dist} > 1.4 \times$ canvas mean) where pupil hands, secondary studio interventions, or late restorations occurred.
 * **Instant Visual Flipping**: In [`data/processed/contested_masters_audit.html`](data/processed/contested_masters_audit.html), every card with an available heatmap includes a **`🗺️ 2D Heatmap`** button allowing instantaneous visual flipping between the original painting and the false-color attribution anomaly overlay.
 
-### Live Interactive Heatmap Flipping in the Web UI
+### Live Interactive Heatmap Flipping & Full-Screen Anomaly Lightbox
 
-Clicking the `🗺️ 2D Heatmap` button instantly loads the spatial anomaly overlay and transforms the button into `🖼️ Original Canvas` for continuous side-by-side verification:
+Clicking the `🗺️ 2D Heatmap` button on a card flips between the original painting and the spatial anomaly overlay. Furthermore, **clicking directly on any painting card or title opens the Full-Screen High-Resolution Lightbox & Spatial Anomaly Inspector**:
 
 ![Live Spatial Heatmap Active](docs/images/spatial_heatmap_overlay_active.png)
-*Figure 7: Interactive 2D spatial attribution heatmap active on Vermeer's "Girl with a Flute" (NGA Washington), highlighting detected pupil anomaly zones in the collar and background while displaying the toggle control.*
+*Figure 7a: Interactive 2D spatial attribution heatmap active on Vermeer's "Girl with a Flute" (NGA Washington), highlighting detected pupil anomaly zones in the collar and background while displaying the toggle control.*
+
+![Full-Screen Lightbox Anomaly Inspector](docs/images/fullscreen_lightbox_anomaly_inspector.png)
+*Figure 7b: Full-Screen High-Resolution Lightbox & Spatial Anomaly Inspector (`#artworkLightbox`). Clicking any painting opens its complete uncropped frame with interactive buttons for **Original High-Res**, **2D Facture Heatmap**, and **Anomaly Zones ("Strange Areas")**, plus real-time opacity blending, zoom (`100%–450%`), and keyboard navigation (`H`, `A`, `←/→`).*
 
 ---
 
@@ -266,20 +269,23 @@ python scripts/scale_manifold_clustering.py
 
 ---
 
-## 📦 Large-Scale Multi-Museum Ingestion (Up to 60 GB Capacity)
+## 📦 Large-Scale Multi-Museum Ingestion (60 GB Quota Cap vs. Current 21.04 GB Active Sample)
 
 To support macroscopic connoisseurship, ArtStylometry features an enterprise-grade multi-threaded batch harvester (`src/acquisition/batch_harvester.py`, `scripts/harvest_batch.py`):
 
-* **Multi-Institution Harvesting**: Ingests directly from **National Gallery of Art, Washington (NGA IIIF)** with 4,078 published high-res paintings, and **Cleveland Museum of Art (CMA)** with ~3,500 public-domain paintings.
-* **Target Storage Quota (`--target-gb`)**: Configurable disk quota cap (e.g. `--target-gb 30` or `--target-gb 60`) that monitors real-time disk consumption and gracefully pauses when the target is reached (supporting up to ~25,000 ultra-high-res 4,000 px paintings).
+* **Current Active Working Sample (`21.04 GB` on Disk)**:
+  - **12,346 Indexed Catalog Entries** in [`data/processed/global_gallery_catalog.json`](data/processed/global_gallery_catalog.json) across the National Gallery of Art (NGA), Cleveland Museum of Art (CMA), The Met, Rijksmuseum, Louvre, Prado, and Wikidata.
+  - **9,304 Unique Physical High-Resolution Files** on disk (`data/raw/paintings/` + `data/raw/contested_masters/`, totaling **21.04 GB** after deduplicating cross-catalog overlaps) projected into the 3D WebGL Collection Manifold.
+  - **1,137 Monographic Master Workshop Paintings** audited in depth across the 12 contested ateliers (isolating 108 connoisseurship divergences and 190 statistical outliers).
+* **Configurable Target Storage Quota (`--target-gb 60.0`)**: Built-in disk quota governor (`--target-gb 30` or `--target-gb 60`) that monitors real-time disk consumption and gracefully pauses harvesting when the cap is reached (supporting up to ~25,000 ultra-high-res 4,000 px paintings within a 60 GB envelope).
 * **High-Throughput Concurrency**: Multi-threaded async worker pool with rate-limiting, socket timeouts, and automatic resume from `data/raw/paintings_catalog.json`.
 * **Git Integrity**: Heavy image files (`data/raw/`, `data/processed/heatmaps/*.jpg`) are strictly ignored via `.gitignore`, while all Parquet datasets, JSON manifests, and interactive HTML dashboards are tracked in version control.
 
 ```bash
-# Ingest paintings from all museum sources with a 60 GB target cap
+# Ingest paintings from all museum sources up to the 60 GB quota cap (Current active sample: 21.04 GB / 12,346 indexed works)
 python scripts/harvest_batch.py --limit 10000 --source all --target-gb 60.0 --concurrency 8
 
-# Run the Contested Masters Audit across all workshops
+# Run the Contested Masters Audit across all workshops (1,137 paintings)
 python scripts/audit_contested_masters.py --skip-harvest
 
 # Generate 2D spatial heatmaps across workshops
@@ -288,9 +294,9 @@ python scripts/generate_corpus_heatmaps.py
 
 ---
 
-## 📈 Macroscopic Scaling Horizon: 10x Expansion & Pan-European Stylometry
+## 📈 Full Catalog Extension: 10x Macroscopic Scaling & Pan-European Stylometry
 
-Beyond the 12,346 paintings currently catalogued on disk (~21 GB), ArtStylometry's modular engine is architected to scale to a **10x larger fine art corpus** (~100,000 to 130,000 masterworks, ~300 GB).
+Beyond the **current active working sample of 12,346 indexed paintings (9,304 unique physical files / 21.04 GB on disk)**, ArtStylometry's modular engine is architected for a **Full Catalog Extension** scaling to a **10x larger fine art corpus** (~110,000 to 130,000 masterworks, ~300 GB).
 
 ### 🏛️ Complete Institutional Reservoir: 14 Open-Access Museum Endpoints
 

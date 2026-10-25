@@ -128,6 +128,22 @@ def capture_all_views() -> None:
         except Exception as e:
             print("    Warning capturing heatmap card:", e)
 
+        # 8b. Capture Full-Screen High-Res Lightbox & Spatial Anomaly Inspector
+        print("  - Capturing Full-Screen Lightbox Anomaly Inspector...")
+        try:
+            target_card = page.locator(".art-card:has-text('Portrait of a man')").first
+            target_card.scroll_into_view_if_needed()
+            time.sleep(0.5)
+            target_card.locator(".card-img-wrapper").click()
+            time.sleep(1.5)
+            page.click("#lbBtnAnomalies")
+            time.sleep(1.0)
+            page.screenshot(path=str(out_dir / "fullscreen_lightbox_anomaly_inspector.png"))
+            page.click(".lb-close")
+            time.sleep(0.5)
+        except Exception as e:
+            print("    Warning capturing full-screen lightbox:", e)
+
         # 9. Capture 3D Manifold with Hover Inspection Tooltip
         print("  - Capturing 3D Manifold with Hover Tooltip...")
         page.goto(f"http://127.0.0.1:{port}/data/processed/collection_manifold_3d.html", wait_until="domcontentloaded")

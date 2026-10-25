@@ -264,19 +264,27 @@
         }
 
         .card-thumbnail-wrap {
-            height: 200px;
-            background: #020617;
+            height: 220px;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            padding: 6px;
+            cursor: zoom-in;
         }
 
         .card-thumbnail-wrap img {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            transition: transform 0.25s ease;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+        }
+
+        .gallery-card:hover .card-thumbnail-wrap img {
+            transform: scale(1.03);
         }
 
         .card-info {
@@ -450,69 +458,110 @@
             background: rgba(30, 41, 59, 0.5);
         }
 
-        /* MODAL */
+        /* HIGH-RES MODAL & ANOMALY INSPECTOR */
         #imgModal {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(2, 6, 23, 0.92);
-            backdrop-filter: blur(8px);
+            inset: 0;
+            background: rgba(2, 6, 23, 0.94);
+            backdrop-filter: blur(10px);
             z-index: 1000;
             display: none;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            padding: 1.5rem;
         }
 
         .modal-content {
             background: var(--bg-surface);
             border: 1px solid var(--border-light);
-            border-radius: 12px;
-            max-width: 1100px;
-            width: 100%;
-            max-height: 90vh;
+            border-radius: 14px;
+            max-width: 1650px;
+            width: 95vw;
+            height: 90vh;
             display: flex;
             overflow: hidden;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.85);
         }
 
         .modal-img-col {
-            flex: 1.4;
-            background: #000;
+            flex: 1;
+            background: radial-gradient(circle at center, #091020 0%, #02050b 100%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .modal-toolbar {
+            padding: 0.7rem 1.2rem;
+            background: rgba(15, 23, 42, 0.92);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .modal-stage {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            overflow: auto;
+            padding: 1.25rem;
+        }
+
+        .modal-canvas-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transform-origin: center center;
+            transition: transform 0.18s ease-out;
         }
 
         .modal-img-col img {
-            max-width: 100%;
-            max-height: 85vh;
+            max-width: calc(95vw - 440px);
+            max-height: calc(90vh - 110px);
             object-fit: contain;
+            display: block;
+            border-radius: 4px;
+        }
+
+        #modalOverlayCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            border-radius: 4px;
         }
 
         .modal-info-col {
-            flex: 1;
-            padding: 2rem;
+            width: 380px;
+            padding: 1.75rem;
             display: flex;
             flex-direction: column;
             gap: 1rem;
             overflow-y: auto;
+            border-left: 1px solid var(--border-light);
         }
 
         .modal-close-btn {
             align-self: flex-end;
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: var(--text-primary);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            font-size: 1.2rem;
             cursor: pointer;
-            margin-top: -0.5rem;
         }
 
-        .modal-close-btn:hover { color: #fff; }
+        .modal-close-btn:hover { background: #e11d48; color: #fff; }
     </style>
 </head>
 <body>
@@ -701,17 +750,38 @@
     <div id="imgModal" onclick="closeImgModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-img-col">
-                <img id="modalImg" src="" alt="Painting Preview" />
+                <div class="modal-toolbar">
+                    <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
+                        <button class="dl-btn" id="modBtnOrig" onclick="setModalMode('original')" style="background:#0284c7; border-color:#38bdf8;">🖼️ Original High-Res</button>
+                        <button class="dl-btn" id="modBtnHm" onclick="setModalMode('heatmap')">🗺️ 2D Facture Heatmap</button>
+                        <button class="dl-btn" id="modBtnAnom" onclick="setModalMode('anomalies')">🎯 Anomaly Zones ("Strange Areas")</button>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <button class="dl-btn" onclick="stepModalZoom(-0.35)">➖</button>
+                        <span id="modalZoomVal" style="font-size:0.75rem; font-weight:700; color:var(--accent-cyan);">100%</span>
+                        <button class="dl-btn" onclick="stepModalZoom(0.35)">➕</button>
+                        <button class="dl-btn" onclick="resetModalZoom()">1:1</button>
+                    </div>
+                </div>
+                <div class="modal-stage">
+                    <div class="modal-canvas-wrap" id="modalCanvasWrap">
+                        <img id="modalImg" src="" alt="Painting Preview" crossorigin="anonymous" onload="renderModalOverlay()" />
+                        <canvas id="modalOverlayCanvas"></canvas>
+                    </div>
+                </div>
             </div>
             <div class="modal-info-col">
                 <button class="modal-close-btn" onclick="closeImgModal()">&times;</button>
-                <h2 id="modalTitle" style="color:#fff; font-size:1.4rem;">Artwork Title</h2>
+                <h2 id="modalTitle" style="color:#fff; font-size:1.35rem; line-height:1.3;">Artwork Title</h2>
                 <div id="modalArtist" style="color:var(--accent-cyan); font-weight:700; font-size:1rem;">Artist</div>
                 <div id="modalMuseum" style="color:var(--text-secondary); font-size:0.85rem;">🏛️ Museum</div>
                 <div id="modalDate" style="color:var(--text-secondary); font-size:0.85rem;">Date: -</div>
-                <div id="modalTag" style="margin-top:0.5rem;"></div>
+                <div id="modalTag" style="margin-top:0.25rem;"></div>
+                <div id="modalDiagBox" style="background:#162035; border:1px solid #263554; border-radius:8px; padding:0.9rem; font-size:0.8rem; color:#cbd5e1; line-height:1.5;">
+                    Click <b>🗺️ 2D Facture Heatmap</b> or <b>🎯 Anomaly Zones</b> to inspect spatial luminance-decoupled stroke energy and localized statistical anomalies across the canvas.
+                </div>
                 <div style="margin-top:auto; display:flex; gap:0.75rem;">
-                    <a id="modalDownloadLink" href="#" target="_blank" class="dl-btn" style="background:#0284c7; border-color:#0284c7;">🔍 Open Full-Resolution Image</a>
+                    <a id="modalDownloadLink" href="#" target="_blank" class="dl-btn" style="background:#0284c7; border-color:#0284c7; width:100%; justify-content:center;">🔍 Open Native High-Resolution File</a>
                 </div>
             </div>
         </div>
@@ -825,9 +895,14 @@
         }
 
         // MODAL FUNCTIONS
+        let modalMode = 'original';
+        let modalZoom = 1.0;
+
         function openImgModal(item) {
             const modal = document.getElementById('imgModal');
             const imgPath = resolveImgSrc(item.path);
+            resetModalZoom();
+            setModalMode('original');
             document.getElementById('modalImg').src = imgPath;
             document.getElementById('modalTitle').textContent = item.title;
             document.getElementById('modalArtist').textContent = item.artist;
@@ -843,6 +918,123 @@
             `;
 
             modal.style.display = 'flex';
+        }
+
+        function setModalMode(m) {
+            modalMode = m;
+            document.getElementById('modBtnOrig').style.background = m === 'original' ? '#0284c7' : '';
+            document.getElementById('modBtnHm').style.background = m === 'heatmap' ? '#0284c7' : '';
+            document.getElementById('modBtnAnom').style.background = m === 'anomalies' ? '#e11d48' : '';
+            renderModalOverlay();
+        }
+
+        function stepModalZoom(d) {
+            modalZoom = Math.max(1.0, Math.min(4.0, +(modalZoom + d).toFixed(2)));
+            document.getElementById('modalCanvasWrap').style.transform = `scale(${modalZoom})`;
+            document.getElementById('modalZoomVal').textContent = Math.round(modalZoom * 100) + '%';
+        }
+
+        function resetModalZoom() {
+            modalZoom = 1.0;
+            const w = document.getElementById('modalCanvasWrap');
+            if (w) w.style.transform = 'scale(1)';
+            const z = document.getElementById('modalZoomVal');
+            if (z) z.textContent = '100%';
+        }
+
+        function renderModalOverlay() {
+            const img = document.getElementById('modalImg');
+            const canvas = document.getElementById('modalOverlayCanvas');
+            if (!img || !canvas || !img.complete || !img.naturalWidth) return;
+            const w = img.clientWidth || img.naturalWidth;
+            const h = img.clientHeight || img.naturalHeight;
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+            if (modalMode === 'original') return;
+
+            const off = document.createElement('canvas');
+            const gw = 160, gh = 160;
+            off.width = gw; off.height = gh;
+            const octx = off.getContext('2d');
+            octx.drawImage(img, 0, 0, gw, gh);
+            let data;
+            try { data = octx.getImageData(0, 0, gw, gh).data; } catch(e) { return; }
+
+            const lum = new Float32Array(gw * gh);
+            for (let i = 0; i < gw * gh; i++) {
+                lum[i] = 0.299 * data[i*4] + 0.587 * data[i*4+1] + 0.114 * data[i*4+2];
+            }
+            const gridN = 16;
+            const cw = gw / gridN, ch = gh / gridN;
+            const scores = new Float32Array(gridN * gridN);
+            let sum = 0, sumSq = 0, minS = Infinity, maxS = -Infinity;
+            for (let gy = 0; gy < gridN; gy++) {
+                for (let gx = 0; gx < gridN; gx++) {
+                    let gSum = 0, count = 0;
+                    for (let y = Math.max(1, Math.floor(gy*ch)); y <= Math.min(gh-2, Math.floor((gy+1)*ch)); y++) {
+                        for (let x = Math.max(1, Math.floor(gx*cw)); x <= Math.min(gw-2, Math.floor((gx+1)*cw)); x++) {
+                            const p = y * gw + x;
+                            const dx = lum[p+1] - lum[p-1], dy = lum[p+gw] - lum[p-gw];
+                            gSum += Math.sqrt(dx*dx + dy*dy);
+                            count++;
+                        }
+                    }
+                    const s = count > 0 ? gSum / count : 0;
+                    scores[gy*gridN+gx] = s;
+                    sum += s; sumSq += s*s;
+                    if (s < minS) minS = s;
+                    if (s > maxS) maxS = s;
+                }
+            }
+            const mean = sum / (gridN*gridN);
+            const std = Math.sqrt(Math.max(1e-5, sumSq/(gridN*gridN) - mean*mean));
+
+            if (modalMode === 'heatmap') {
+                const hc = document.createElement('canvas');
+                hc.width = gridN; hc.height = gridN;
+                const hctx = hc.getContext('2d');
+                const himg = hctx.createImageData(gridN, gridN);
+                const rng = Math.max(1e-5, maxS - minS);
+                for (let i = 0; i < gridN*gridN; i++) {
+                    const t = Math.max(0, Math.min(1, (scores[i] - minS) / rng));
+                    himg.data[i*4] = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4*t - 3))));
+                    himg.data[i*4+1] = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4*t - 2))));
+                    himg.data[i*4+2] = Math.round(255 * Math.min(1, Math.max(0, 1.5 - Math.abs(4*t - 1))));
+                    himg.data[i*4+3] = 185;
+                }
+                hctx.putImageData(himg, 0, 0);
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(hc, 0, 0, w, h);
+            } else if (modalMode === 'anomalies') {
+                ctx.fillStyle = 'rgba(4, 9, 20, 0.48)';
+                ctx.fillRect(0, 0, w, h);
+                const cands = [];
+                for (let gy = 1; gy < gridN - 1; gy++) {
+                    for (let gx = 1; gx < gridN - 1; gx++) {
+                        const z = Math.abs(scores[gy*gridN+gx] - mean) / std;
+                        cands.push({ gx, gy, z });
+                    }
+                }
+                cands.sort((a, b) => b.z - a.z);
+                const picked = [];
+                for (const c of cands) {
+                    if (picked.length >= 4) break;
+                    if (!picked.some(p => Math.abs(p.gx - c.gx) <= 2 && Math.abs(p.gy - c.gy) <= 2)) picked.push(c);
+                }
+                const tw = w / gridN, th = h / gridN;
+                picked.forEach((z, idx) => {
+                    const zx = (z.gx - 0.5) * tw, zy = (z.gy - 0.5) * th, zw = tw * 2, zh = th * 2;
+                    ctx.save();
+                    ctx.beginPath(); ctx.rect(zx, zy, zw, zh); ctx.clip();
+                    ctx.drawImage(img, 0, 0, w, h);
+                    ctx.restore();
+                    ctx.strokeStyle = idx === 0 ? '#f43f5e' : '#f59e0b';
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(zx, zy, zw, zh);
+                });
+            }
         }
 
         function closeImgModal(e) {
