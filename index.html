@@ -765,7 +765,7 @@
                 </div>
                 <div class="modal-stage">
                     <div class="modal-canvas-wrap" id="modalCanvasWrap">
-                        <img id="modalImg" src="" alt="Painting Preview" crossorigin="anonymous" onload="renderModalOverlay()" />
+                        <img id="modalImg" src="" alt="" onload="renderModalOverlay()" />
                         <canvas id="modalOverlayCanvas"></canvas>
                     </div>
                 </div>
@@ -845,10 +845,7 @@
 
         function resolveImgSrc(p) {
             if (!p) return '';
-            if (location.protocol.startsWith('http')) {
-                return '/' + p.replace(/^[a-zA-Z]:\/.*?\/ArtStylometry\//, '').replace(/^file:\/\/\//, '').replace(/^\/?/, '');
-            }
-            return p.startsWith('file:///') ? p : ('file:///' + p);
+            return p.replace(/\\/g, '/').replace(/^[a-zA-Z]:\/.*?\/ArtStylometry\//, '').replace(/^file:\/\/\//, '').replace(/^\/?/, '');
         }
 
         function renderGalleryChunk(reset = false) {
