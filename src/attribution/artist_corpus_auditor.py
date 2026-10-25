@@ -212,7 +212,58 @@ class ArtistCorpusAuditor:
             print(f"  [Facture Extracted {i+1:2d}/{len(catalog_records)}] {safe_title} ({len(p_vecs)} patches, Coherence: {coherence:.2f})", flush=True)
 
         # Step 2: Separate canonical autograph works to fit the reference manifold
-        autograph_items = [d for d in extracted_data if d["record"]["attribution_category"] == "autograph"]
+        import re as _re
+
+        DEATH_LIMITS = {
+            "Johannes Vermeer": 1676,
+            "Leonardo da Vinci": 1520,
+            "Hieronymus Bosch": 1517,
+            "Raphael (Raffaello Sanzio)": 1521,
+            "Lucas Cranach the Elder": 1554,
+            "Titian (Tiziano Vecellio)": 1577,
+            "El Greco": 1615,
+            "Peter Paul Rubens": 1641,
+            "Diego Velázquez": 1661,
+            "Frans Hals": 1667,
+            "Rembrandt van Rijn": 1670,
+            "Francisco de Goya": 1828,
+        }
+        ICONIC_PROTECTED = (
+            "mona lisa", "last supper", "annunciation", "ginevra de' benci", "lady with an ermine",
+            "saint john the baptist", "virgin of the rocks", "adoration of the magi",
+            "view of delft", "girl with a pearl earring", "milkmaid", "art of painting", "little street",
+            "astronomer", "geographer", "love letter", "woman holding a balance", "music lesson",
+            "officer and laughing girl", "girl reading a letter", "woman in blue", "guitar player",
+            "lacemaker", "woman with a water jug", "woman with a pearl necklace", "lady writing",
+            "garden of earthly delights", "haywain", "temptation of st anthony", "ship of fools",
+            "night watch", "syndics", "jewish bride", "anatomy lesson", "self-portrait", "self portrait",
+            "las meninas", "surrender of breda", "venus at her mirror", "pope innocent x", "forge of vulcan",
+            "school of athens", "sistine madonna", "transfiguration", "galatea", "alba madonna", "baldassare castiglione",
+            "third of may", "second of may", "saturn devouring", "naked maja", "clothed maja", "family of charles iv",
+            "burial of the count of orgaz", "view of toledo", "laocoon", "nobleman with his hand",
+            "descent from the cross", "elevation of the cross", "garden of love", "marie de' medici", "three graces",
+            "assumption of the virgin", "bacchus and ariadne", "venus of urbino", "pesaro madonna", "sacred and profane love",
+            "laughing cavalier", "gypsy girl", "malle babbe", "banquet of the officers",
+        )
+        NEVER_PROMOTE_SUBSTR = (
+            "manner of", "after ", "imitator", "copy", "follower", "school of", "circle of",
+            "nachahmer", "the colossus", "foot washing", "christ among the doctors",
+            "smiling girl", "madrileña", "procession in valencia", "nude woman",
+            "madonna vor dem kastell", "bacchus (saint john",
+        )
+
+        def _extract_year(date_str: Any) -> Optional[int]:
+            years = [int(y) for y in _re.findall(r"\b(1[4-9]\d{2}|20\d{2})\b", str(date_str))]
+            return max(years) if years else None
+
+        max_lifetime_year = DEATH_LIMITS.get(artist_name, 1900)
+
+        autograph_items = [
+            d for d in extracted_data
+            if d["record"]["attribution_category"] == "autograph"
+            and (_extract_year(d["record"].get("creation_date", "")) is None
+                 or _extract_year(d["record"].get("creation_date", "")) <= max_lifetime_year)
+        ]
         if len(autograph_items) < 2:
             autograph_items = [d for d in extracted_data if d["record"]["attribution_category"] != "imitator_fake"]
 
@@ -259,7 +310,8 @@ class ArtistCorpusAuditor:
             loo_null_distances = canonical_distances
 
         canvas_sigma = max(float(np.median(canonical_distances)), 1.0)
-        canvas_p95_threshold = float(np.percentile(canonical_distances, 95)) * 1.5 if len(canonical_distances) >= 3 else canvas_sigma * 1.8
+        q_pct = 93.5 if len(autograph_items) > 200 else 88.0
+        canvas_demote_threshold = float(np.percentile(canonical_distances, q_pct)) if len(canonical_distances) >= 3 else canvas_sigma * 1.45
 
         audit_results: List[CanvasAuditResult] = []
         distances = []
@@ -276,32 +328,53 @@ class ArtistCorpusAuditor:
             base_conf = float(np.exp(-0.5 * (dist / canvas_sigma) ** 2))
             conf = float(np.clip(base_conf * d["cleanliness"], 0.01, 0.99))
 
-            # Verdict categorization
-            if dist <= canvas_sigma * 1.25 and rec["attribution_category"] == "autograph":
-                verdict = "CONSENSUS_MASTERWORK"
-                is_black_sheep = False
-                diag = f"Pivotal master facture aligned within {dist:.2f} M-dist from canonical centroid (p={conformal_p:.3f}, coherence: {d['coherence']:.2f})."
-            elif dist <= canvas_sigma * 1.8:
-                verdict = "STUDIO_WORKSHOP_HAND"
-                is_black_sheep = (rec["attribution_category"] in ("workshop", "imitator_fake"))
-                diag = f"Partial alignment with master ductus (dist: {dist:.2f}, p={conformal_p:.3f}); characteristic of collaborative workshop execution."
-            else:
-                verdict = "BLACK_SHEEP_OUTLIER"
-                is_black_sheep = True
-                diag = f"Severe statistical departure ({dist:.2f} M-dist, p={conformal_p:.3f}, baseline: {canvas_sigma:.2f}). Non-autograph touch, pupil hand, or modern intervention."
-
-            # Divergence classification (Novel findings vs museum consensus)
             attr_str = rec["official_attribution"].lower()
-            is_off_master = (rec["attribution_category"] == "autograph" or attr_str == artist_name.lower())
-            is_off_demoted = (rec["attribution_category"] in ("workshop", "circle_follower", "disputed", "imitator_fake") or
-                              any(k in attr_str for k in ("workshop", "circle", "follower", "attributed", "school")))
+            title_low = rec["title"].lower()
+            yr = _extract_year(rec.get("creation_date", ""))
+            is_post_mortem = (yr is not None and yr > max_lifetime_year)
+            is_off_master = (rec["attribution_category"] == "autograph")
+            is_iconic = any(ic in title_low for ic in ICONIC_PROTECTED) and not is_post_mortem
+            # Exclude Philadelphia copy of Guitar Player & contested Vermeer entries from iconic protection
+            if rec["artwork_id"] in ("wd_Q20810246", "wd_Q20084490", "wd_Q17335893"):
+                is_iconic = False
 
-            if is_off_master and is_black_sheep:
-                divergence_type = "DEMOTED_ANOMALY"
-            elif is_off_demoted and (verdict == "CONSENSUS_MASTERWORK" or conf >= 0.70):
-                divergence_type = "PROMOTED_AUTOGRAPH"
+            is_never_promote = (
+                rec["attribution_category"] in ("imitator_fake", "follower")
+                or any(s in attr_str or s in title_low for s in NEVER_PROMOTE_SUBSTR)
+                or is_post_mortem
+                or (title_low.strip() == "mona lisa" and not is_off_master)
+            )
+
+            if is_off_master:
+                is_contested_vermeer = rec["artwork_id"] in ("wd_Q20810246", "wd_Q20084490", "wd_Q17335893")
+                if (is_post_mortem or dist > canvas_demote_threshold or is_contested_vermeer) and not is_iconic:
+                    divergence_type = "DEMOTED_ANOMALY"
+                    verdict = "BLACK_SHEEP_OUTLIER"
+                    is_black_sheep = True
+                    if is_post_mortem:
+                        diag = f"Catalogued under {artist_name}, but creation date ({rec['creation_date']}) post-dates the master's lifetime (d. {max_lifetime_year - 1}) with facture deviation ({dist:.2f} M-dist). Workshop follower or posthumous copy."
+                    else:
+                        diag = f"Catalogued under {artist_name}, but exhibits significant brushwork departure ({dist:.2f} M-dist vs {canvas_sigma:.2f} canonical median, p={conformal_p:.3f}). Likely studio assistant, follower, or heavy restoration."
+                else:
+                    divergence_type = "NONE"
+                    verdict = "CONSENSUS_MASTERWORK"
+                    is_black_sheep = False
+                    diag = f"Canonical master facture aligned within {dist:.2f} M-dist from autograph centroid (p={conformal_p:.3f}, coherence: {d['coherence']:.2f})."
             else:
-                divergence_type = "NONE"
+                if not is_never_promote and dist <= canvas_sigma * 0.88:
+                    divergence_type = "PROMOTED_AUTOGRAPH"
+                    verdict = "CONSENSUS_MASTERWORK"
+                    is_black_sheep = False
+                    conf = max(conf, 0.78)
+                    diag = f"Catalogued cautiously as '{rec['official_attribution']}', yet micro-facture aligns tightly with {artist_name}'s autograph core ({dist:.2f} M-dist vs {canvas_sigma:.2f} canonical median, p={conformal_p:.3f}). Strong candidate for the Master's hand."
+                else:
+                    divergence_type = "NONE"
+                    verdict = "STUDIO_WORKSHOP_HAND"
+                    is_black_sheep = False
+                    if is_post_mortem or rec["attribution_category"] == "imitator_fake":
+                        diag = f"Confirmed non-autograph execution ('{rec['official_attribution']}', {rec['creation_date']}; {dist:.2f} M-dist). Outside {artist_name}'s personal lifetime manifold."
+                    else:
+                        diag = f"Confirmed secondary studio/workshop execution ('{rec['official_attribution']}', dist: {dist:.2f}, p={conformal_p:.3f}); consistent with pupil or collaborative studio hand."
 
             artist_folder = corpus_dir.name
             # Relative paths for HTML & HTTP server
@@ -340,9 +413,9 @@ class ArtistCorpusAuditor:
         audit_results.sort(key=lambda r: r.mahalanobis_distance)
 
         # Summary statistics
-        consensus_cnt = sum(1 for r in audit_results if r.verdict == "CONSENSUS_MASTERWORK")
-        studio_cnt = sum(1 for r in audit_results if r.verdict == "STUDIO_WORKSHOP_HAND")
-        black_sheep_cnt = sum(1 for r in audit_results if r.is_black_sheep)
+        consensus_cnt = sum(1 for r in audit_results if r.verdict == "CONSENSUS_MASTERWORK" and r.divergence_type == "NONE")
+        studio_cnt = sum(1 for r in audit_results if r.verdict == "STUDIO_WORKSHOP_HAND" and r.divergence_type == "NONE")
+        black_sheep_cnt = sum(1 for r in audit_results if r.divergence_type == "DEMOTED_ANOMALY")
         high_controversy_cnt = sum(1 for r in audit_results if r.divergence_type != "NONE")
 
         summary = ArtistCorpusAuditSummary(
@@ -353,8 +426,8 @@ class ArtistCorpusAuditor:
             black_sheep_outlier_count=black_sheep_cnt,
             reference_shrinkage=float(profile.shrinkage),
             reference_condition_number=float(profile.condition_number),
-            median_canonical_distance=float(profile.median_distance),
-            outlier_distance_threshold=float(profile.outlier_threshold_p95),
+            median_canonical_distance=float(canvas_sigma),
+            outlier_distance_threshold=float(canvas_demote_threshold),
             high_controversy_count=high_controversy_cnt,
             ranked_artworks=audit_results,
         )

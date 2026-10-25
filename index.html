@@ -508,8 +508,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: auto;
+            overflow: hidden;
             padding: 1.25rem;
+            user-select: none;
+            cursor: grab;
+        }
+        .modal-stage.is-dragging {
+            cursor: grabbing;
         }
 
         .modal-canvas-wrap {
@@ -518,7 +523,11 @@
             align-items: center;
             justify-content: center;
             transform-origin: center center;
-            transition: transform 0.18s ease-out;
+            transition: transform 0.14s ease-out;
+            will-change: transform;
+        }
+        .modal-canvas-wrap.no-transition {
+            transition: none !important;
         }
 
         .modal-img-col img {
@@ -763,9 +772,9 @@
                         <button class="dl-btn" onclick="resetModalZoom()">1:1</button>
                     </div>
                 </div>
-                <div class="modal-stage">
+                <div class="modal-stage" id="modalStage">
                     <div class="modal-canvas-wrap" id="modalCanvasWrap">
-                        <img id="modalImg" src="" alt="" onload="renderModalOverlay()" />
+                        <img id="modalImg" src="" alt="" draggable="false" onload="renderModalOverlay()" />
                         <canvas id="modalOverlayCanvas"></canvas>
                     </div>
                 </div>
@@ -894,6 +903,11 @@
         // MODAL FUNCTIONS
         let modalMode = 'original';
         let modalZoom = 1.0;
+        let modalPanX = 0;
+        let modalPanY = 0;
+        let modalDragging = false;
+        let modalDragStartX = 0;
+        let modalDragStartY = 0;
 
         function openImgModal(item) {
             const modal = document.getElementById('imgModal');
@@ -925,19 +939,75 @@
             renderModalOverlay();
         }
 
-        function stepModalZoom(d) {
-            modalZoom = Math.max(1.0, Math.min(4.0, +(modalZoom + d).toFixed(2)));
-            document.getElementById('modalCanvasWrap').style.transform = `scale(${modalZoom})`;
-            document.getElementById('modalZoomVal').textContent = Math.round(modalZoom * 100) + '%';
+        function applyModalTransform() {
+            const w = document.getElementById('modalCanvasWrap');
+            if (w) w.style.transform = `translate(${Math.round(modalPanX)}px, ${Math.round(modalPanY)}px) scale(${modalZoom})`;
+            const z = document.getElementById('modalZoomVal');
+            if (z) z.textContent = Math.round(modalZoom * 100) + '%';
+        }
+
+        function stepModalZoom(d, focalX = null, focalY = null) {
+            const oldZ = modalZoom;
+            const nextZ = Math.max(1.0, Math.min(6.0, +(modalZoom + d).toFixed(2)));
+            if (nextZ === 1.0) {
+                modalPanX = 0;
+                modalPanY = 0;
+            } else if (focalX !== null && focalY !== null && oldZ !== nextZ) {
+                const st = document.getElementById('modalStage');
+                if (st) {
+                    const rect = st.getBoundingClientRect();
+                    const cx = focalX - (rect.left + rect.width / 2);
+                    const cy = focalY - (rect.top + rect.height / 2);
+                    const ratio = nextZ / oldZ;
+                    modalPanX = cx - (cx - modalPanX) * ratio;
+                    modalPanY = cy - (cy - modalPanY) * ratio;
+                }
+            }
+            modalZoom = nextZ;
+            applyModalTransform();
         }
 
         function resetModalZoom() {
             modalZoom = 1.0;
-            const w = document.getElementById('modalCanvasWrap');
-            if (w) w.style.transform = 'scale(1)';
-            const z = document.getElementById('modalZoomVal');
-            if (z) z.textContent = '100%';
+            modalPanX = 0;
+            modalPanY = 0;
+            applyModalTransform();
         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const st = document.getElementById('modalStage');
+            const wrap = document.getElementById('modalCanvasWrap');
+            if (!st) return;
+            st.addEventListener('wheel', function(e) {
+                if (document.getElementById('imgModal').style.display !== 'flex') return;
+                e.preventDefault();
+                stepModalZoom(e.deltaY < 0 ? 0.3 : -0.3, e.clientX, e.clientY);
+            }, { passive: false });
+
+            st.addEventListener('mousedown', function(e) {
+                if (e.button !== 0) return;
+                e.preventDefault();
+                modalDragging = true;
+                modalDragStartX = e.clientX - modalPanX;
+                modalDragStartY = e.clientY - modalPanY;
+                st.classList.add('is-dragging');
+                if (wrap) wrap.classList.add('no-transition');
+            });
+
+            window.addEventListener('mousemove', function(e) {
+                if (!modalDragging) return;
+                modalPanX = e.clientX - modalDragStartX;
+                modalPanY = e.clientY - modalDragStartY;
+                applyModalTransform();
+            });
+
+            window.addEventListener('mouseup', function() {
+                if (!modalDragging) return;
+                modalDragging = false;
+                st.classList.remove('is-dragging');
+                if (wrap) wrap.classList.remove('no-transition');
+            });
+        });
 
         function renderModalOverlay() {
             const img = document.getElementById('modalImg');
