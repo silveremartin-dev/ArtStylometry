@@ -22,6 +22,12 @@ try:
 except ImportError:
     HAS_HDBSCAN = False
 
+try:
+    from sklearn.cluster import HDBSCAN as SkHDBSCAN
+    HAS_SK_HDBSCAN = True
+except ImportError:  # scikit-learn < 1.3
+    HAS_SK_HDBSCAN = False
+
 
 @dataclass
 class ClusteringResult:
@@ -85,7 +91,7 @@ class CollectionClusterer:
 
         eff_min_cluster = min(self.min_cluster_size, max(2, n_samples // 3))
 
-        # Attempt HDBSCAN
+        # Attempt HDBSCAN (standalone package first, then scikit-learn's native implementation)
         if HAS_HDBSCAN and n_samples >= 4:
             try:
                 clusterer = hdbscan.HDBSCAN(
@@ -100,6 +106,16 @@ class CollectionClusterer:
             except Exception as e:
                 logger.warning("HDBSCAN failed (%s). Falling back to DBSCAN.", e)
                 labels, probs, method = self._run_dbscan(vectors)
+        elif HAS_SK_HDBSCAN and n_samples >= 4:
+            sk = SkHDBSCAN(
+                min_cluster_size=eff_min_cluster,
+                min_samples=self.min_samples,
+                metric=self.metric,
+                cluster_selection_method="leaf" if n_samples >= 200 else "eom",
+            )
+            labels = sk.fit_predict(vectors)
+            probs = sk.probabilities_
+            method = "sklearn_hdbscan"
         else:
             labels, probs, method = self._run_dbscan(vectors)
 

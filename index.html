@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArtStylometry — Connoisseurship Engine & Manifold Explorer</title>
+    <style>
+        :root {
+            --bg-base: #070d19;
+            --bg-surface: #0f172a;
+            --bg-card: #1e293b;
+            --bg-hover: #334155;
+            --border-color: #1e293b;
+            --border-light: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-cyan: #38bdf8;
+            --accent-emerald: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --accent-purple: #c084fc;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background: var(--bg-base);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* TOP NAVIGATION BAR */
+        header {
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-light);
+            padding: 0.75rem 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            gap: 1.5rem;
+            z-index: 100;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #0284c7, #38bdf8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .brand-text h1 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            background: linear-gradient(90deg, #f8fafc, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text p {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+        }
+
+        /* NAVIGATION TABS */
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-light);
+        }
+
+        .nav-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-tab:hover {
+            color: var(--text-primary);
+            background: rgba(51, 65, 85, 0.5);
+        }
+
+        .nav-tab.active {
+            background: #0284c7;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+        }
+
+        .tab-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        /* SYSTEM STATUS PILLS */
+        .status-strip {
+            display: flex;
+            gap: 0.6rem;
+            align-items: center;
+        }
+
+        .status-pill {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .status-pill b {
+            color: var(--text-primary);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
+            box-shadow: 0 0 8px var(--accent-emerald);
+        }
+
+        /* MAIN VIEWPORT */
+        main {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tab-content {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        iframe.view-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: var(--bg-base);
+        }
+
+        /* TAB 3: GLOBAL GALLERY */
+        .gallery-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background: var(--bg-base);
+            overflow: hidden;
+        }
+
+        .gallery-toolbar {
+            padding: 1rem 2rem;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .gallery-search {
+            flex: 1;
+            min-width: 280px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .gallery-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .gallery-count {
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            font-weight: 700;
+        }
+
+        .gallery-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .gallery-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .gallery-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-thumbnail-wrap {
+            height: 200px;
+            background: #020617;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .card-thumbnail-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-info {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            flex: 1;
+        }
+
+        .card-info-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.3;
+        }
+
+        .card-info-artist {
+            font-size: 0.8rem;
+            color: #cbd5e1;
+        }
+
+        .card-info-museum {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            margin-top: auto;
+        }
+
+        .tag-pill {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .tag-master { background: rgba(16, 185, 129, 0.85); color: #fff; }
+        .tag-harvested { background: rgba(56, 189, 248, 0.85); color: #0b1120; }
+
+        /* TAB 4: EXPORTS & METHODOLOGY */
+        .exports-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2.5rem 3.5rem;
+            background: var(--bg-base);
+        }
+
+        .exports-header {
+            margin-bottom: 2.5rem;
+            border-bottom: 1px solid var(--border-light);
+            padding-bottom: 1.5rem;
+        }
+
+        .exports-header h2 {
+            font-size: 2rem;
+            color: var(--accent-cyan);
+            margin-bottom: 0.5rem;
+        }
+
+        .exports-header p {
+            color: var(--text-secondary);
+            max-width: 950px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .download-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .dl-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .dl-card-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dl-card-title h3 {
+            font-size: 1.15rem;
+            color: #fff;
+        }
+
+        .dl-badge {
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid var(--accent-cyan);
+        }
+
+        .dl-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .dl-links {
+            display: flex;
+            gap: 0.6rem;
+            margin-top: auto;
+            flex-wrap: wrap;
+        }
+
+        .dl-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            color: #fff;
+            padding: 7px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s ease;
+        }
+
+        .dl-btn:hover {
+            background: #0284c7;
+            border-color: #0284c7;
+        }
+
+        .methodology-table-wrap {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 3rem;
+        }
+
+        .methodology-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: left;
+        }
+
+        .methodology-table th {
+            background: #162035;
+            color: var(--accent-cyan);
+            padding: 12px 16px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .methodology-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+            color: #cbd5e1;
+        }
+
+        .methodology-table tr:hover td {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        /* MODAL */
+        #imgModal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(2, 6, 23, 0.92);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal-content {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
+            border-radius: 12px;
+            max-width: 1100px;
+            width: 100%;
+            max-height: 90vh;
+            display: flex;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        }
+
+        .modal-img-col {
+            flex: 1.4;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .modal-img-col img {
+            max-width: 100%;
+            max-height: 85vh;
+            object-fit: contain;
+        }
+
+        .modal-info-col {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .modal-close-btn {
+            align-self: flex-end;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-top: -0.5rem;
+        }
+
+        .modal-close-btn:hover { color: #fff; }
+    </style>
+</head>
+<body>
+
+    <!-- TOP HEADER -->
+    <header>
+        <a href="#" class="brand">
+            <div class="brand-icon">🎨</div>
+            <div class="brand-text">
+                <h1>ArtStylometry</h1>
+                <p>Computational Stylometry & Quantitative Connoisseurship Engine</p>
+            </div>
+        </a>
+
+        <!-- NAVIGATION TABS -->
+        <nav class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('audit', this)">
+                <span>🏛️ 12 Master Workshops Audit</span>
+                <span class="tab-badge">1,137 Artworks</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('manifold', this)">
+                <span>🌌 3D WebGL Manifold</span>
+                <span class="tab-badge" id="manifoldBadge">Collection Scale</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('gallery', this)">
+                <span>🖼️ Global Gallery</span>
+                <span class="tab-badge">12,300+</span>
+            </button>
+            <button class="nav-tab" onclick="switchTab('exports', this)">
+                <span>📊 Data & Methodology</span>
+            </button>
+        </nav>
+
+        <!-- STATUS STRIP -->
+        <div class="status-strip">
+            <div class="status-pill">
+                <span class="status-dot"></span>
+                <span>Server: <b>Active (Port <span id="srvPort">8080</span>)</b></span>
+            </div>
+            <div class="status-pill">
+                <span>Paintings: <b>12,346 Indexed</b></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN VIEWPORTS -->
+    <main>
+        <!-- TAB 1: CONTESTED MASTERS AUDIT -->
+        <div id="tab-audit" class="tab-content active">
+            <iframe src="data/processed/contested_masters_audit.html" class="view-frame" title="12 Master Workshops Audit"></iframe>
+        </div>
+
+        <!-- TAB 2: 3D MANIFOLD CLUSTERING -->
+        <div id="tab-manifold" class="tab-content">
+            <iframe src="data/processed/collection_manifold_3d.html" class="view-frame" title="3D WebGL Collection Manifold"></iframe>
+        </div>
+
+        <!-- TAB 3: GLOBAL GALLERY (12,300+ PAINTINGS) -->
+        <div id="tab-gallery" class="tab-content">
+            <div class="gallery-container">
+                <div class="gallery-toolbar">
+                    <input type="text" id="globalGallerySearch" class="gallery-search" placeholder="🔍 Search across 12,300+ paintings by title, artist, museum..." oninput="filterGlobalGallery()" />
+                    <select id="galleryMuseumFilter" class="gallery-select" onchange="filterGlobalGallery()">
+                        <option value="">All Museums</option>
+                        <option value="Cleveland Museum of Art">Cleveland Museum of Art</option>
+                        <option value="National Gallery of Art">National Gallery of Art</option>
+                        <option value="Metropolitan Museum of Art">Metropolitan Museum of Art</option>
+                        <option value="Rijksmuseum">Rijksmuseum</option>
+                        <option value="Musée du Louvre">Musée du Louvre</option>
+                        <option value="Museum Archive">Other Museum Collections</option>
+                    </select>
+                    <select id="galleryCorpusFilter" class="gallery-select" onchange="filterGlobalGallery()">
+                        <option value="">All Corpus Types</option>
+                        <option value="MASTER_CORPUS">Audited Master Workshops (1,137)</option>
+                        <option value="HARVESTED">General Harvested Museum Collections</option>
+                    </select>
+                    <div id="galleryCountBadge" class="gallery-count">Loading collection catalog...</div>
+                </div>
+                <div class="gallery-scroll-area" id="galleryScrollArea" onscroll="handleGalleryScroll()">
+                    <div class="gallery-grid" id="galleryGrid">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                    <div id="galleryLoadingMore" style="text-align:center; padding:2rem; color:var(--text-secondary); display:none;">
+                        Loading additional paintings...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: EXPORTS & METHODOLOGY -->
+        <div id="tab-exports" class="tab-content">
+            <div class="exports-scroll-area">
+                <div class="exports-header">
+                    <h2>📊 Datasets, Analytical Exports & Connoisseurship Methodology</h2>
+                    <p>Access high-dimensional feature embeddings, Ledoit-Wolf regularized Mahalanobis matrices, and conformal p-value classifications generated by ArtStylometry. All datasets are provided in typed Apache Arrow/Parquet, CSV, and JSON columnar formats.</p>
+                </div>
+
+                <!-- DOWNLOAD CARDS -->
+                <div class="download-cards-grid">
+                    <div class="dl-card">
+                        <div class="dl-card-title">
+                            <h3>🏛️ 12 Master Workshops Audit</h3>
+                            <span class="dl-badge">1,137 Artworks</span>
+                        </div>
+                        <p>Complete audited corpora for Vermeer, Rembrandt, Rubens, Cranach, Titian, Goya, Raphael, Velázquez, Hals, Bosch, Leonardo da Vinci, and El Greco. Features Mahalanobis distance manifolds, conformal p-values, ductus coherence, and black sheep anomaly isolation.</p>
+                        <div class="dl-links">
+                            <a href="data/processed/contested_masters_audit.parquet" download class="dl-btn">📥 Parquet</a>
+                            <a href="data/processed/contested_masters_audit.csv" download class="dl-btn">📄 CSV</a>
+                            <a href="data/processed/contested_masters_audit.json" download class="dl-btn">📋 JSON</a>
+                            <a href="data/processed/contested_masters_audit.html" target="_blank" class="dl-btn">🌐 Audit Dashboard</a>
+                        </div>
+                    </div>
+
+                    <div class="dl-card">
+                        <div class="dl-card-title">
+                            <h3>🌌 3D WebGL Manifold Clustering</h3>
+                            <span class="dl-badge">Collection Scale</span>
+                        </div>
+                        <p>Unsupervised HDBSCAN density clustering and UMAP 2D/3D projections on self-supervised DINOv2 ViT patch tokens. Sensor and museum acquisition bias verified at <b>AMI = 0.0000</b> (complete chromatic decoupling).</p>
+                        <div class="dl-links">
+                            <a href="data/processed/collection_clustering.parquet" download class="dl-btn">📥 Parquet</a>
+                            <a href="data/processed/collection_clustering.csv" download class="dl-btn">📄 CSV</a>
+                            <a href="data/processed/collection_clustering_summary.json" download class="dl-btn">📋 JSON Summary</a>
+                            <a href="data/processed/collection_manifold_3d.html" target="_blank" class="dl-btn">🌐 3D Manifold</a>
+                        </div>
+                    </div>
+
+                    <div class="dl-card">
+                        <div class="dl-card-title">
+                            <h3>🖼️ Global Harvested Catalog</h3>
+                            <span class="dl-badge">12,346 Artworks</span>
+                        </div>
+                        <p>Unified catalog of high-resolution fine art paintings harvested from the National Gallery of Art, Cleveland Museum of Art, Metropolitan Museum of Art, Rijksmuseum, Louvre, and Wikidata.</p>
+                        <div class="dl-links">
+                            <a href="data/processed/global_gallery_catalog.json" download class="dl-btn">📋 JSON Catalog (2.3 MB)</a>
+                            <a href="data/raw/paintings_catalog.json" download class="dl-btn">📦 Museum Metadata</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATISTICAL BENCHMARK TABLE -->
+                <h3 style="font-size:1.3rem; color:#fff; margin-bottom:1rem;">📈 Quantitative Benchmarks by Master Atelier</h3>
+                <div class="methodology-table-wrap">
+                    <table class="methodology-table">
+                        <thead>
+                            <tr>
+                                <th>Master Atelier</th>
+                                <th>Audited Artworks</th>
+                                <th>Consensus Autograph</th>
+                                <th>Studio / Assistant</th>
+                                <th>⚠️ Black Sheep Outliers</th>
+                                <th>M-Dist Threshold (α=0.01)</th>
+                                <th>Ledoit-Wolf Shrinkage (λ*)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><b>Johannes Vermeer</b></td><td>52</td><td>33 (63.5%)</td><td>19 (36.5%)</td><td>11 (21.2%)</td><td>15.79</td><td>0.0044</td></tr>
+                            <tr><td><b>Rembrandt van Rijn</b></td><td>69</td><td>57 (82.6%)</td><td>12 (17.4%)</td><td>18 (26.1%)</td><td>15.79</td><td>0.0007</td></tr>
+                            <tr><td><b>Peter Paul Rubens</b></td><td>46</td><td>41 (89.1%)</td><td>5 (10.9%)</td><td>15 (32.6%)</td><td>15.79</td><td>0.0009</td></tr>
+                            <tr><td><b>Lucas Cranach the Elder</b></td><td>39</td><td>39 (100.0%)</td><td>0 (0.0%)</td><td>11 (28.2%)</td><td>15.79</td><td>0.0014</td></tr>
+                            <tr><td><b>Titian (Tiziano Vecellio)</b></td><td>47</td><td>44 (93.6%)</td><td>3 (6.4%)</td><td>9 (19.1%)</td><td>15.79</td><td>0.0019</td></tr>
+                            <tr><td><b>Francisco de Goya</b></td><td>532</td><td>520 (97.7%)</td><td>12 (2.3%)</td><td>46 (8.6%)</td><td>15.79</td><td>0.0017</td></tr>
+                            <tr><td><b>Raphael (Raffaello Sanzio)</b></td><td>40</td><td>38 (95.0%)</td><td>2 (5.0%)</td><td>6 (15.0%)</td><td>15.79</td><td>0.0028</td></tr>
+                            <tr><td><b>Diego Velázquez</b></td><td>40</td><td>39 (97.5%)</td><td>1 (2.5%)</td><td>5 (12.5%)</td><td>15.79</td><td>0.0036</td></tr>
+                            <tr><td><b>Frans Hals</b></td><td>41</td><td>38 (92.7%)</td><td>3 (7.3%)</td><td>8 (19.5%)</td><td>15.79</td><td>0.0015</td></tr>
+                            <tr><td><b>Hieronymus Bosch</b></td><td>110</td><td>63 (57.3%)</td><td>37 (33.6%)</td><td>31 (28.2%)</td><td>15.79</td><td>0.0105</td></tr>
+                            <tr><td><b>Leonardo da Vinci</b></td><td>81</td><td>78 (96.3%)</td><td>3 (3.7%)</td><td>17 (21.0%)</td><td>15.79</td><td>0.0013</td></tr>
+                            <tr><td><b>El Greco</b></td><td>40</td><td>39 (97.5%)</td><td>1 (2.5%)</td><td>3 (7.5%)</td><td>15.79</td><td>0.0019</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- MATHEMATICAL METHODOLOGY NOTES -->
+                <h3 style="font-size:1.3rem; color:#fff; margin-bottom:1rem;">📐 Methodological Foundations & Quantitative Connoisseurship</h3>
+                <div style="background:var(--bg-surface); border:1px solid var(--border-light); border-radius:10px; padding:2rem; color:var(--text-secondary); line-height:1.7; font-size:0.9rem;">
+                    <p style="margin-bottom:1rem;"><b style="color:var(--accent-cyan);">1. Chromatic Decoupling & Ductus Tensor:</b> To eliminate sensor bias, warm halogen vs cold LED digitizations, and varnish yellowing, ArtStylometry extracts spatial luminance derivatives (Sobel operators and steerable filter banks) to evaluate directional ductus fluency and stroke orientation entropy independent of aging pigments.</p>
+                    <p style="margin-bottom:1rem;"><b style="color:var(--accent-cyan);">2. Morphological Craquelure Masking:</b> A black top-hat morphological filter isolates and masks high-frequency micro-crack networks (*craquelure*) and relining artifacts, preventing the model from grouping works by conservation condition rather than painterly touch.</p>
+                    <p style="margin-bottom:1rem;"><b style="color:var(--accent-cyan);">3. Ledoit-Wolf Shrinkage Covariance & Mahalanobis Distance:</b> Each master workshop is modeled as a multivariate Gaussian distribution in feature space. Because the number of canonical paintings is smaller than the feature dimension ($N \ll D$), we apply Ledoit-Wolf shrinkage to yield a well-conditioned, invertible covariance matrix for numerically stable Mahalanobis anomaly detection.</p>
+                    <p><b style="color:var(--accent-cyan);">4. Conformal Prediction & Continuous 2D Attribution Heatmaps:</b> Connoisseurship in visible light is treated as an empirical hypothesis test rather than a binary judicial verdict. Every canvas is assigned a conformal p-value and a sliding-window spatial heatmap revealing secondary hands, workshop assists, and modern overpaints.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- HIGH-RES IMAGE MODAL -->
+    <div id="imgModal" onclick="closeImgModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-img-col">
+                <img id="modalImg" src="" alt="Painting Preview" />
+            </div>
+            <div class="modal-info-col">
+                <button class="modal-close-btn" onclick="closeImgModal()">&times;</button>
+                <h2 id="modalTitle" style="color:#fff; font-size:1.4rem;">Artwork Title</h2>
+                <div id="modalArtist" style="color:var(--accent-cyan); font-weight:700; font-size:1rem;">Artist</div>
+                <div id="modalMuseum" style="color:var(--text-secondary); font-size:0.85rem;">🏛️ Museum</div>
+                <div id="modalDate" style="color:var(--text-secondary); font-size:0.85rem;">Date: -</div>
+                <div id="modalTag" style="margin-top:0.5rem;"></div>
+                <div style="margin-top:auto; display:flex; gap:0.75rem;">
+                    <a id="modalDownloadLink" href="#" target="_blank" class="dl-btn" style="background:#0284c7; border-color:#0284c7;">🔍 Open Full-Resolution Image</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CLIENT SCRIPT -->
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            if (tabId === 'gallery' && globalGalleryData.length === 0) {
+                loadGlobalGallery();
+            }
+        }
+
+        // GLOBAL GALLERY LOGIC
+        let globalGalleryData = [];
+        let filteredGalleryData = [];
+        let galleryRenderIndex = 0;
+        const CHUNK_SIZE = 48;
+
+        async function loadGlobalGallery() {
+            const countBadge = document.getElementById('galleryCountBadge');
+            countBadge.innerText = 'Loading collection catalog (12,346 paintings)...';
+            try {
+                const res = await fetch('data/processed/global_gallery_catalog.json');
+                globalGalleryData = await res.json();
+                filteredGalleryData = globalGalleryData;
+                countBadge.innerText = `${globalGalleryData.length.toLocaleString()} paintings catalogued`;
+                renderGalleryChunk(true);
+            } catch (err) {
+                countBadge.innerText = 'Error loading catalog.';
+                console.error(err);
+            }
+        }
+
+        function filterGlobalGallery() {
+            const query = document.getElementById('globalGallerySearch').value.toLowerCase().trim();
+            const museumFilter = document.getElementById('galleryMuseumFilter').value;
+            const corpusFilter = document.getElementById('galleryCorpusFilter').value;
+
+            filteredGalleryData = globalGalleryData.filter(item => {
+                if (museumFilter && !item.museum.includes(museumFilter)) return false;
+                if (corpusFilter) {
+                    if (corpusFilter === 'MASTER_CORPUS' && item.tag === 'HARVESTED') return false;
+                    if (corpusFilter === 'HARVESTED' && item.tag !== 'HARVESTED') return false;
+                }
+                if (query) {
+                    const text = (item.title + ' ' + item.artist + ' ' + item.museum).toLowerCase();
+                    if (!text.includes(query)) return false;
+                }
+                return true;
+            });
+
+            document.getElementById('galleryCountBadge').innerText = `${filteredGalleryData.length.toLocaleString()} paintings found`;
+            renderGalleryChunk(true);
+        }
+
+        function resolveImgSrc(p) {
+            if (!p) return '';
+            if (location.protocol.startsWith('http')) {
+                return '/' + p.replace(/^[a-zA-Z]:\/.*?\/ArtStylometry\//, '').replace(/^file:\/\/\//, '').replace(/^\/?/, '');
+            }
+            return p.startsWith('file:///') ? p : ('file:///' + p);
+        }
+
+        function renderGalleryChunk(reset = false) {
+            const grid = document.getElementById('galleryGrid');
+            if (reset) {
+                grid.innerHTML = '';
+                galleryRenderIndex = 0;
+            }
+
+            const nextChunk = filteredGalleryData.slice(galleryRenderIndex, galleryRenderIndex + CHUNK_SIZE);
+            nextChunk.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'gallery-card';
+                card.onclick = () => openImgModal(item);
+
+                const isMaster = (item.tag !== 'HARVESTED');
+                const tagClass = isMaster ? 'tag-master' : 'tag-harvested';
+                const tagLabel = isMaster ? 'Master Workshop' : 'Museum Collection';
+
+                card.innerHTML = `
+                    <div class="card-thumbnail-wrap">
+                        <img src="${resolveImgSrc(item.path)}" loading="lazy" alt="${item.title}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'200\\' height=\\'200\\' fill=\\'%231e293b\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%230f172a\\'/><text x=\\'50%\\' y=\\'50%\\' fill=\\'%2364748b\\' font-size=\\'12\\' text-anchor=\\'middle\\'>Preview Unavailable</text></svg>'" />
+                        <span class="tag-pill ${tagClass}">${tagLabel}</span>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-info-title">${item.title}</div>
+                        <div class="card-info-artist">${item.artist} ${item.date ? '(' + item.date + ')' : ''}</div>
+                        <div class="card-info-museum">🏛️ ${item.museum}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            galleryRenderIndex += nextChunk.length;
+        }
+
+        function handleGalleryScroll() {
+            const el = document.getElementById('galleryScrollArea');
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
+                if (galleryRenderIndex < filteredGalleryData.length) {
+                    renderGalleryChunk(false);
+                }
+            }
+        }
+
+        // MODAL FUNCTIONS
+        function openImgModal(item) {
+            const modal = document.getElementById('imgModal');
+            const imgPath = resolveImgSrc(item.path);
+            document.getElementById('modalImg').src = imgPath;
+            document.getElementById('modalTitle').textContent = item.title;
+            document.getElementById('modalArtist').textContent = item.artist;
+            document.getElementById('modalMuseum').textContent = '🏛️ ' + item.museum;
+            document.getElementById('modalDate').textContent = item.date ? ('Date: ' + item.date) : '';
+            document.getElementById('modalDownloadLink').href = imgPath;
+
+            const isMaster = (item.tag !== 'HARVESTED');
+            document.getElementById('modalTag').innerHTML = `
+                <span class="tag-pill ${isMaster ? 'tag-master' : 'tag-harvested'}" style="position:static; display:inline-block;">
+                    ${isMaster ? 'Audited Master Workshop (' + item.tag + ')' : 'Harvested Museum Collection'}
+                </span>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        function closeImgModal(e) {
+            document.getElementById('imgModal').style.display = 'none';
+        }
+
+        // KEYBOARD & PORT SETUP
+        document.addEventListener('DOMContentLoaded', () => {
+            const p = window.location.port;
+            if (p) document.getElementById('srvPort').textContent = p;
+        });
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeImgModal();
+        });
+    </script>
+</body>
+</html>

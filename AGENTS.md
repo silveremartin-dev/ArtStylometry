@@ -133,9 +133,7 @@ All AI agents and developers implementing features in ArtStylometry must adhere 
 6. **`Visualization & Reporting` (`src/visualization/`)**:
    - `heatmap_overlay.py`: Blends attribution confidence heatmaps with original artwork pixels.
    - `dashboard.py`: Exports interactive HTML/JavaScript visual exploration interfaces.
-7. **`Artwork Browser & Navigator` (`src/browser/`)**:
-   - `catalog_data.py`: Curated benchmark records from Musée du Louvre, Smithsonian, and Rijksmuseum with empirical confidence metrics and famous historical misattributions.
-   - `renderer.py`: Compiles standalone, zero-dependency interactive artwork explorer (`browser.html`) supporting chronological and alphabetical sorting, real-time search, interactive heatmap overlays, and case-study filters.
+   - `manifold_explorer.py`: Exports standalone 3D WebGL point-cloud manifold explorer (`collection_manifold_3d.html`).
 
 ---
 

@@ -1,0 +1,9 @@
+{
+  "n_artworks": 9304,
+  "n_clusters": 9,
+  "noise_fraction": 0.8881,
+  "silhouette": 0.3518,
+  "ami_cluster_vs_museum": 0.4103,
+  "ami_cluster_vs_century": 0.1656,
+  "projection": "umap"
+}

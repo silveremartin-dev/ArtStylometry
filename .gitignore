@@ -61,12 +61,21 @@ ENV/
 env.bak/
 venv.bak/
 
-# ArtStylometry Data Directories (Heavy artwork TIFF/JPEG/Numpy arrays)
+# ArtStylometry Heavy Raw Data & Tile Caches (Gigapixel scans & raw museum assets)
 data/raw/
 data/tiles/
-data/cache/
 data/embeddings/
-data/processed/
+data/cache/
+
+# Allow and track results, reports, parquets and analytical outputs in data/processed
+!data/processed/
+!data/processed/**
+!*.parquet
+!*.gitkeep
+data/processed/heatmaps/*.jpg
+data/processed/heatmaps/**/*.jpg
+
+# Heavy weights & temporary models
 *.pt
 *.pth
 *.onnx

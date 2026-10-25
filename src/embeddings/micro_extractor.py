@@ -33,6 +33,8 @@ class PatchEmbeddingResult:
     vector: np.ndarray  # L2-normalized 1D feature vector
     cleanliness: float  # Cleanliness score (1.0 - crack density)
     gradient_energy: float  # Measure of local painterly detail
+    ductus_coherence: float = 0.0  # Measure of directional stroke fluency
+    ductus_entropy: float = 1.0  # Shannon entropy of stroke angles (low = confident, high = hesitant)
     is_valid: bool = True
 
 
@@ -124,6 +126,43 @@ class MicroFactureExtractor:
             )
             self.deep_model = None
 
+    @staticmethod
+    def compute_ductus_orientation_fields(gx: np.ndarray, gy: np.ndarray) -> Tuple[float, float]:
+        """
+        Computes structure tensor eigenspace:
+        J_xx = gx^2, J_yy = gy^2, J_xy = gx * gy
+        Coherence = ((lambda1 - lambda2) / (lambda1 + lambda2 + eps))^2
+        Entropy = Shannon entropy of gradient orientation histogram (16 bins)
+        """
+        jxx = gx ** 2
+        jyy = gy ** 2
+        jxy = gx * gy
+
+        trace = jxx + jyy
+        det = jxx * jyy - jxy ** 2
+        disc = np.maximum(0.0, trace ** 2 - 4 * det)
+        sqrt_disc = np.sqrt(disc)
+
+        l1 = 0.5 * (trace + sqrt_disc)
+        l2 = 0.5 * np.maximum(0.0, trace - sqrt_disc)
+
+        num = l1 - l2
+        den = l1 + l2 + 1e-6
+        coherence_map = (num / den) ** 2
+        mean_coherence = float(np.mean(coherence_map))
+
+        angles = (0.5 * np.arctan2(2 * jxy, jxx - jyy)) % np.pi
+        weights = np.sqrt(trace)
+        if np.sum(weights) > 1e-6:
+            hist, _ = np.histogram(angles, bins=16, range=(0, np.pi), weights=weights)
+            p = hist / (np.sum(hist) + 1e-9)
+            p_nz = p[p > 0]
+            entropy = float(-np.sum(p_nz * np.log2(p_nz)) / np.log2(16))
+        else:
+            entropy = 1.0
+
+        return mean_coherence, entropy
+
     def extract_patch(self, patch: np.ndarray, patch_id: int = 0) -> PatchEmbeddingResult:
         """
         Extracts a normalized embedding vector for a single RGB patch (H, W, 3).
@@ -139,7 +178,10 @@ class MicroFactureExtractor:
         gradient_energy = grad_feats.gradient_energy
         grad_vec = self.decoupler.extract_gradient_feature_vector(input_patch)
 
-        # 3. Compute primary texture representation
+        # 3. Compute ductus orientation coherence & entropy
+        coherence, entropy = self.compute_ductus_orientation_fields(grad_feats.grad_x, grad_feats.grad_y)
+
+        # 4. Compute primary texture representation
         if self.deep_model is not None and HAS_TORCH:
             try:
                 pil_img = Image.fromarray(patch)
@@ -149,25 +191,29 @@ class MicroFactureExtractor:
                     feat = self.deep_model(tensor).squeeze(0).cpu().numpy()
                 # Normalize and fuse with gradient vector
                 feat_norm = feat / max(1e-6, np.linalg.norm(feat))
-                fused = np.concatenate([feat_norm, grad_vec])
+                fused = np.concatenate([feat_norm, grad_vec, [coherence, entropy]])
                 final_vec = fused / max(1e-6, np.linalg.norm(fused))
                 return PatchEmbeddingResult(
                     patch_id=patch_id,
                     vector=final_vec.astype(np.float32),
                     cleanliness=cleanliness,
                     gradient_energy=gradient_energy,
+                    ductus_coherence=coherence,
+                    ductus_entropy=entropy,
                     is_valid=True,
                 )
             except Exception as e:
                 logger.debug("DINOv2 inference failed on patch: %s. Using analytical fallback.", e)
 
         # Analytical structural facture extraction (Deterministic Gram + Gabor + Gradient)
-        struct_vec = self._extract_analytical_facture(patch, grad_feats, grad_vec)
+        struct_vec = self._extract_analytical_facture(patch, grad_feats, grad_vec, coherence, entropy)
         return PatchEmbeddingResult(
             patch_id=patch_id,
             vector=struct_vec.astype(np.float32),
             cleanliness=cleanliness,
             gradient_energy=gradient_energy,
+            ductus_coherence=coherence,
+            ductus_entropy=entropy,
             is_valid=True,
         )
 
@@ -180,6 +226,8 @@ class MicroFactureExtractor:
         patch: np.ndarray,
         grad_feats: Any,
         grad_vec: np.ndarray,
+        coherence: float = 0.0,
+        entropy: float = 1.0,
     ) -> np.ndarray:
         """
         Deterministic, robust structural texture descriptor:
@@ -239,12 +287,13 @@ class MicroFactureExtractor:
         if pyr_norm > 0:
             pyramid_arr /= pyr_norm
 
-        # Concatenate: 32 (grad) + 15 (gram) + 16 (steerable) + 16 (pyramid) + 49 (pad to 128)
+        # Concatenate: 32 (grad) + 15 (gram) + 16 (steerable) + 16 (pyramid) + 2 (ductus) + pad to 128
         combined = np.concatenate([
             grad_vec,
             gram_vals.astype(np.float32),
             steer_arr,
             pyramid_arr,
+            np.array([coherence, entropy], dtype=np.float32),
         ])
 
         target_dim = self.embedding_dim
