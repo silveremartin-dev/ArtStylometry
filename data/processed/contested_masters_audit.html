@@ -302,7 +302,7 @@
             color: #64748b;
         }
         #lbOrigImg {
-            max-width: calc(96vw - 440px);
+            max-width: calc(96vw - 540px);
             max-height: calc(92vh - 125px);
             width: auto;
             height: auto;
@@ -332,42 +332,81 @@
             color: #94a3b8;
         }
         .lb-sidebar {
-            width: 400px;
+            width: 500px;
+            max-width: 38vw;
+            min-width: 380px;
             background: #0f172a;
             border-left: 1px solid #1e293b;
-            padding: 1.5rem;
+            padding: 1.15rem 1.35rem;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0.65rem;
+            overflow-x: hidden;
             overflow-y: auto;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            box-sizing: border-box;
+            scrollbar-width: thin;
+            scrollbar-color: #334155 transparent;
+        }
+        .lb-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .lb-sidebar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        .lb-sidebar * {
+            max-width: 100%;
+            box-sizing: border-box;
         }
         .lb-close {
             background: #1e293b;
             border: 1px solid #334155;
             color: #f8fafc;
-            width: 34px;
-            height: 34px;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
             border-radius: 8px;
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
         }
         .lb-close:hover { background: #e11d48; border-color: #fb7185; }
         .lb-metric-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.65rem;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 0.5rem;
         }
         .lb-metric-card {
             background: #162035;
             border: 1px solid #263554;
-            padding: 0.65rem 0.8rem;
+            padding: 0.5rem 0.65rem;
             border-radius: 8px;
+            min-width: 0;
+            overflow: hidden;
         }
-        .lb-metric-label { font-size: 0.68rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.04em; }
-        .lb-metric-val { font-size: 1.05rem; font-weight: 800; color: #f8fafc; margin-top: 2px; }
+        .lb-metric-label {
+            font-size: 0.66rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .lb-metric-val {
+            font-size: 0.98rem;
+            font-weight: 800;
+            color: #f8fafc;
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     </style>
 </head>
 <body>
