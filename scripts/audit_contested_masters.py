@@ -1194,7 +1194,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             else if (status === 'Canonical Master' && b.textContent.includes('Confirmed Masterworks')) b.classList.add('active');
             else if (status === 'Divergences' && b.textContent.includes('Disagreements')) b.classList.add('active');
             else if (status === 'Demoted' && b.textContent.includes('Not Him')) b.classList.add('active');
-            else if (status === 'Promoted' && b.textContent.includes('Master\'s Hand')) b.classList.add('active');
+            else if (status === 'Promoted' && b.textContent.includes("Master's Hand")) b.classList.add('active');
             else if (status === 'Studio / Assistant' && b.textContent.includes('Confirmed Workshop')) b.classList.add('active');
             else b.classList.remove('active');
         });
