@@ -423,7 +423,6 @@ ArtStylometry/
 ├── start.bat                       # Windows one-click local server launcher (auto-port & browser)
 ├── start.sh                        # Linux / macOS one-click launcher
 ├── index.html                      # Unified master portal (Audit, Manifold 3D, Gallery, Exports)
-├── browser.html                    # Auto-redirect wrapper to index.html
 │
 ├── data/
 │   ├── raw/                        # Ingested high-resolution artwork files (gitignored)
