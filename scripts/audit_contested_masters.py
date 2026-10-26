@@ -450,6 +450,14 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         </div>
     </div>
 
+    <!-- EMPTY STATE NOTIFICATION -->
+    <div id="noResultsNotice" style="display:none; text-align:center; padding:3rem 1.5rem; background:#131d32; border:1px dashed #334155; border-radius:12px; margin-bottom:2.5rem;">
+        <div style="font-size:2rem; margin-bottom:0.5rem;">🔍</div>
+        <div style="font-size:1.15rem; font-weight:700; color:#f8fafc; margin-bottom:0.4rem;">Aucune œuvre ne correspond à cette combinaison de filtres</div>
+        <div style="font-size:0.88rem; color:#94a3b8; max-width:620px; margin:0 auto 1.25rem;">Cet atelier ne comporte aucun tableau pour le critère d'attribution ou la recherche sélectionné(e).</div>
+        <button onclick="resetAllFilters()" style="background:#0284c7; color:#fff; border:none; padding:9px 20px; border-radius:8px; font-weight:700; font-size:0.85rem; cursor:pointer;">🔄 Réinitialiser les filtres (Afficher tout)</button>
+    </div>
+
     <!-- ARTIST SECTIONS -->
     {% for summary in summaries %}
     <div class="artist-section" data-artist="{{ summary.artist_name }}">
@@ -660,10 +668,13 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     <script>
     function resolveSrc(p) {
         if (!p) return '';
-        if (location.protocol.startsWith('http')) {
-            return p.replace(/^[a-zA-Z]:\\/.*?\\/ArtStylometry\\//, '/').replace(/^\\/?/, '/');
+        if (p.startsWith('http://') || p.startsWith('https://') || p.startsWith('data:') || p.startsWith('.') || p.startsWith('/')) {
+            return p;
         }
-        return p.startsWith('file:///') ? p : ('file:///' + p);
+        if (location.protocol.startsWith('http')) {
+            return p.replace(/^[a-zA-Z]:[/\\\\].*?[/\\\\]ArtStylometry[/\\\\]/, '/').replace(/\\\\/g, '/');
+        }
+        return p.startsWith('file:///') ? p : ('file:///' + p.replace(/\\\\/g, '/'));
     }
 
     function toggleHeatmap(artId, origSrc, hmSrc, btn) {
@@ -767,7 +778,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         document.getElementById('lbMetricCoherence').textContent = cohText;
         document.getElementById('lbMetricEntropy').textContent = entText;
         document.getElementById('lbRationale').innerHTML = diagBox;
-        document.getElementById('lbRawLink').href = resolveSrc(origSrc);
+        document.getElementById('lbRawLink').href = origSrc;
 
         const frameBtn = document.getElementById('lbBtnFrame');
         if (frameBtn) {
@@ -815,7 +826,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         lbOrig.dataset.isOutlier = card.classList.contains('is-mouton-noir') ? '1' : '0';
         lbOrig.dataset.conf = String(confVal);
         lbOrig.dataset.titleSeed = title;
-        lbOrig.src = resolveSrc(origSrc);
+        lbOrig.src = origSrc;
 
         setLbMode('original');
         document.getElementById('artworkLightbox').style.display = 'flex';
@@ -854,8 +865,8 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             if (statusEl) {
                 statusEl.textContent = "🖼️ Toile isolée sans cadre (surface peinte pure pour l'analyse scientifique des touches).";
             }
-            if (img) img.src = resolveSrc(lbOrigCanvasSrc);
-            if (rawLink) rawLink.href = resolveSrc(lbOrigCanvasSrc);
+            if (img) img.src = lbOrigCanvasSrc;
+            if (rawLink) rawLink.href = lbOrigCanvasSrc;
         }
         if (lbMode !== 'original') {
             setLbMode('original');
@@ -871,7 +882,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             const frameBtn = document.getElementById('lbBtnFrame');
             if (frameBtn) frameBtn.classList.remove('active');
             const img = document.getElementById('lbOrigImg');
-            if (img) img.src = resolveSrc(lbOrigCanvasSrc);
+            if (img) img.src = lbOrigCanvasSrc;
         }
         document.getElementById('lbBtnOrig').classList.toggle('active', mode === 'original' && !lbViewingFramed);
         document.getElementById('lbBtnHeatmap').classList.toggle('active', mode === 'heatmap');
@@ -1323,6 +1334,17 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         applyFilters();
     }
 
+    function resetAllFilters() {
+        currentArtist = 'all';
+        currentStatus = 'all';
+        currentQuery = '';
+        const searchInput = document.getElementById('auditSearchInput');
+        if (searchInput) searchInput.value = '';
+        document.querySelectorAll('.artist-pill').forEach(b => b.classList.toggle('active', b.getAttribute('data-artist') === 'all'));
+        document.querySelectorAll('.status-pill').forEach(b => b.classList.toggle('active', b.id === 'pillStatusAll'));
+        applyFilters();
+    }
+
     function applyFilters() {
         let totalVisible = 0;
         const sections = document.querySelectorAll('.artist-section');
@@ -1473,6 +1495,8 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         });
 
         document.getElementById('filterCountBadge').textContent = totalVisible.toLocaleString() + ' Artworks Displayed';
+        const noRes = document.getElementById('noResultsNotice');
+        if (noRes) noRes.style.display = (totalVisible === 0) ? 'block' : 'none';
         previewVerdict(currentStatus);
     }
     </script>
