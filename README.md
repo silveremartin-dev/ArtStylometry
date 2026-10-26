@@ -4,7 +4,7 @@
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
 [![DINOv2](https://img.shields.io/badge/embeddings-DINOv2%20%2F%20Gram-purple.svg)](https://github.com/facebookresearch/dinov2)
 [![Clustering: HDBSCAN](https://img.shields.io/badge/clustering-HDBSCAN%20%2B%20UMAP-yellow.svg)](https://scikit-learn.org/)
-[![Tests: 31 Passing](https://img.shields.io/badge/tests-31%20passed-brightgreen.svg)](tests/)
+[![Tests: 33 Passing](https://img.shields.io/badge/tests-33%20passed-brightgreen.svg)](tests/)
 [![IIIF API Compliant](https://img.shields.io/badge/IIIF-v2%20%26%20v3-red.svg)](https://iiif.io/)
 [![12,300+ Hi-Res Paintings](https://img.shields.io/badge/corpus-12346%20paintings%20(4k)-blue.svg)](data/processed/)
 [![12 Historical Workshops](https://img.shields.io/badge/audited%20masters-12%20workshops%20(1137%20works)-indigo.svg)](data/processed/)
@@ -50,7 +50,10 @@ The portal homepage coordinates direct navigation between all analytical layers,
 ---
 
 ### 2. Multi-Facet Filtering Toolbar & Interactive Atelier Badges
-The audit view features dual-tier dynamic filtering allowing researchers to drill down into specific workshops or isolate divergences instantly:
+The audit view features dual-tier dynamic bidirectional filtering allowing researchers to drill down into specific workshops or isolate divergences instantly:
+- **Bidirectional Dynamic Counts**: Selecting an Atelier dynamically updates the counts inside each Verdict pill (Autographs, Studio, Outliers, Divergences). Conversely, selecting a Verdict pill dynamically re-tallies the badge counts on all 12 Atelier cards.
+- **Dynamic Visible Numbering**: Visible cards are continuously renumbered `#1` to `#N` in the active filtered view.
+- **Zero-Result Recovery**: If a combination yields 0 matches, a contextual reset button (*"🔄 Réinitialiser les filtres"*) allows one-click recovery.
 
 ![Filter Toolbar & Badges](docs/images/filter_toolbar_and_badges.png)
 *Figure 2: The filter toolbar (`contested_masters_audit.html`), showing the 12 master workshop selectors and instant verdict pills (All Divergences, Demoted Anomalies, Promoted Autographs, Consensus Autographs, Consensus Studio).*
@@ -186,6 +189,11 @@ Users can isolate these historical breakthroughs instantly in `contested_masters
 - Click **`✨ Disputed Promoted to Master (17)`** to inspect overlooked master-grade touch.
 - Click any artist card badge (e.g. `⚠️ 11 Outliers`) to filter directly to that workshop's anomalies.
 
+### Multi-Master Cross-Attribution: Candidate Workshop Recommendations
+When a painting is demoted or isolated as a studio outlier, ArtStylometry avoids leaving the connoisseur with an uninformative rejection. Instead, the engine automatically projects the artwork's facture against the reference manifolds of all **other 11 master workshops** to compute cross-attribution affinities:
+- **School Replicas & Copies**: For example, copies after lost Leonardo compositions (e.g. *The Battle of Anghiari*) or workshop replicas are evaluated against the Peter Paul Rubens or Italian circles, highlighting high-affinity candidate hands.
+- **Collaborative Hands**: Pupil works (such as Boltraffio, Cesare da Sesto, or Govert Flinck) are surfaced with explicit proximity metrics $\mathcal{D}_{\mathcal{M}}$ and relative affinity ratios directly in the lightbox inspector.
+
 ---
 
 ## 🎯 Quantitative Connoisseurship: The 12 Master Workshops
@@ -238,7 +246,11 @@ Clicking the `🗺️ 2D Heatmap` button on a card flips between the original pa
 *Figure 7a: Interactive 2D spatial attribution heatmap active on Vermeer's "Girl with a Flute" (NGA Washington), highlighting detected pupil anomaly zones in the collar and background while displaying the toggle control.*
 
 ![Full-Screen Lightbox Anomaly Inspector](docs/images/fullscreen_lightbox_anomaly_inspector.png)
-*Figure 7b: Full-Screen High-Resolution Lightbox & Spatial Anomaly Inspector (`#artworkLightbox`). Clicking any painting opens its complete uncropped frame with interactive buttons for **Original High-Res**, **2D Facture Heatmap**, and **Anomaly Zones ("Strange Areas")**, plus real-time opacity blending, zoom (`100%–450%`), and keyboard navigation (`H`, `A`, `←/→`).*
+*Figure 7b: Full-Screen High-Resolution Lightbox & Spatial Anomaly Inspector (`#artworkLightbox`). Features include:*
+- **Authentic Frame vs Painted Surface**: Interactive toggle between `🖼️ Cadre d'origine / Scan complet` (showing authentic uncropped museum scans including historical frames where digitized) and `🎨 Surface peinte`.
+- **Zero Horizontal Scrollbar & 500px Ergonomic Sidebar**: Widened 500px inspection sidebar with word-wrapping, auto-resizing grid columns (`minmax(0, 1fr)`), and compact vertical layout fitting 1080p+ viewports without scrolling.
+- **Multimodal Layer Toggles**: Real-time switching between **Original High-Res**, **2D Facture Heatmap**, and **Anomaly Zones ("Strange Areas")** with opacity blending sliders, deep-zoom (`100%–450%`), and keyboard shortcuts (`H`, `A`, `←/→`).
+- **Cross-Master Diagnostic Box**: Displays nearest candidate workshop manifolds for contested or studio-assisted paintings.
 
 ---
 
@@ -347,9 +359,9 @@ Ingesting 100,000+ masterworks transforms ArtStylometry from a single-atelier au
 
 ---
 
-## 🔬 The 5 Critical Vulnerabilities & Algorithmic Mitigations
+## 🔬 The 6 Critical Vulnerabilities & Algorithmic Mitigations
 
-To prevent self-deception and ensure scientific rigor, ArtStylometry explicitly identifies the 5 central vulnerabilities of computational art connoisseurship and implements direct algorithmic countermeasures:
+To prevent self-deception and ensure scientific rigor, ArtStylometry explicitly identifies the 6 central vulnerabilities of computational art connoisseurship and implements direct algorithmic countermeasures:
 
 | Critical Connoisseurship Bottleneck | Concrete Algorithmic Countermeasure Implemented | Module & Architectural Path | Connoisseurship Impact |
 | :--- | :--- | :--- | :--- |
@@ -358,6 +370,7 @@ To prevent self-deception and ensure scientific rigor, ArtStylometry explicitly 
 | **3. Sample Size Starvation ($N \ll D$)**<br>Masters have only 15–35 surviving works; empirical covariance matrices collapse and become ill-conditioned. | **Ledoit-Wolf & OAS Shrinkage Covariance**<br>Fits well-conditioned covariance manifolds using optimal shrinkage estimators, regularizing inverted eigenvalues. | [`src/attribution/reference_profile.py`](src/attribution/reference_profile.py) | Guarantees mathematically stable, non-singular Mahalanobis distance metrics. |
 | **4. Missing Physical Scale (DPI / Metric Sizing)**<br>1,200 DPI vs 300 DPI scans capture radically different physical areas for the same pixel dimensions. | **Calibrated Metric-Scale Patch Slicing**<br>Extracts patches based on physical millimeters (e.g. $25 \times 25$ mm) parsed from IIIF physical dimension headers. | [`src/preprocessing/tiler.py`](src/preprocessing/tiler.py) | Standardizes physical brushstroke area across divergent museum scanners. |
 | **5. ViT Token Boundary Artifacts**<br>Square patch and ViT token cuts artificially sever continuous brushstrokes and inject step discontinuities. | **Spatial Window Apodization (Hann / Gaussian)**<br>Applies 2D spatial tapering windows to smooth patch borders before embedding extraction. | [`src/embeddings/micro_extractor.py`](src/embeddings/micro_extractor.py) | Prevents artificial edge frequency energy from contaminating facture descriptors. |
+| **6. Multi-Source Redundant Scans & Cropping Duplicates**<br>Aggregating across museums and open databases injects duplicate crops, multiple resolutions of the same canvas, or variant captures. | **Dual-Stage Perceptual Hashing & Crop Resolution**<br>Evaluates dHash/pHash Hamming distances and sub-frame normalized correlation to purge redundant scans automatically. | [`src/preprocessing/tiler.py`](src/preprocessing/tiler.py) / [`scripts/audit_contested_masters.py`](scripts/audit_contested_masters.py) | Eliminates duplicate statistical over-weighting across reference manifolds. |
 
 ---
 

@@ -127,3 +127,20 @@ $$\mathbf{v}_k = \sum_{i: q(\mathbf{e}_i) = k} (\mathbf{e}_i - \mathbf{c}_k)$$
 The collection matrix $\mathbf{D} \in \mathbb{R}^{M \times D_{\text{global}}}$ is projected into 2D/3D manifolds via UMAP / PCA and clustered using HDBSCAN:
 - Core artist clusters: $\mathcal{C}_1, \mathcal{C}_2, \dots$
 - Outlier / noise paintings: $\mathcal{C}_{-1}$
+
+### 3.7 Multi-Master Cross-Attribution & Candidate Workshop Projection
+When an artwork $\mathbf{x}$ is demoted or flagged as a peripheral studio anomaly relative to its primary cataloged master $m_{\text{target}}$:
+$$\mathcal{D}_{\mathcal{M}}^{(m_{\text{target}})}(\mathbf{x}) > \tau_{\text{outlier}}$$
+The engine evaluates its projection distance against all alternative reference artist manifolds $\mathcal{M} = \{m_1, \dots, m_K\}$:
+$$m^* = \arg\min_{m \in \mathcal{M} \setminus \{m_{\text{target}}\}} \mathcal{D}_{\mathcal{M}}^{(m)}(\mathbf{x})$$
+The system computes the cross-attribution affinity ratio:
+$$\mathcal{A}(m^*) = \frac{\mathcal{D}_{\mathcal{M}}^{(m_{\text{target}})}(\mathbf{x})}{\mathcal{D}_{\mathcal{M}}^{(m^*)}(\mathbf{x})}$$
+If $\mathcal{A}(m^*) > 1.25$, the artwork is surfaced in the connoisseurship diagnostic panel with a high-affinity studio candidate recommendation (e.g. Flemish Baroque hand / Rubens for Italian battle copies, or Boltraffio/Milanese circle for Leonardo school variants).
+
+### 3.8 Automated Algorithmic Artwork Deduplication
+To prevent redundant multi-source digitizations or overlapping crops from contaminating statistical manifolds, ArtStylometry employs automated dual-stage perceptual hashing and structural similarity:
+1. **Perceptual Difference Hashing (dHash & pHash)**:
+   $$\text{dHash}(I) = \left[ I(x+1, y) > I(x, y) \right]_{x, y}$$
+   Hamming distance threshold $\mathcal{D}_H(h_A, h_B) \le 4$ isolates identical or resized scans.
+2. **Crop & Aspect Ratio Invariance**: Sub-region normalized cross-correlation automatically identifies whether image $B$ is a cropped sub-frame of canvas $A$.
+Duplicates are clustered and pruned purely algorithmically without manual overrides, preserving full provenance reproducibility.
