@@ -335,13 +335,11 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         .lb-canvas-container.no-transition {
             transition: none !important;
         }
-        .lb-canvas-container.is-framed {
-            padding: 24px;
-            background: linear-gradient(135deg, #2b1f14 0%, #170f07 100%);
-            border: 14px ridge #d4af37;
-            outline: 5px solid #5a3d1b;
-            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.95), inset 0 0 20px rgba(0, 0, 0, 0.85);
-            border-radius: 6px;
+        .lb-btn.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            border-color: #334155;
+            color: #64748b;
         }
         #lbOrigImg {
             max-width: calc(96vw - 440px);
@@ -432,12 +430,12 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         <!-- ROW 2: CONNOISSEURSHIP FINDINGS & DIVERGENCES -->
         <div class="filter-row" style="border-top: 1px solid #1e293b; padding-top: 0.75rem;">
             <span class="filter-label">⚖️ Verdict:</span>
-            <button class="status-pill active" onclick="filterByStatus('all', this)" onmouseenter="previewVerdict('all')" onmouseleave="restoreVerdict()" data-tooltip="Display all {{ total_all }} paintings across the 12 workshops regardless of attribution status.">All Works ({{ total_all }})</button>
-            <button class="status-pill status-pill-divergence" onclick="filterByStatus('Divergences', this)" onmouseenter="previewVerdict('Divergences')" onmouseleave="restoreVerdict()" data-tooltip="ALL DISAGREEMENTS ({{ total_demoted }} Demotions + {{ total_promoted }} Promotions): Works where our quantitative brushwork analysis contradicts the museum catalog in either direction.">⚡ All Catalog ≠ AI Disagreements ({{ total_divergences }})</button>
-            <button class="status-pill status-pill-demoted" onclick="filterByStatus('Demoted', this)" onmouseenter="previewVerdict('Demoted')" onmouseleave="restoreVerdict()" data-tooltip="DIRECTION 1 — DOUBTFUL MASTERWORK (Attributed to Master, but AI says NOT by him): Officially catalogued under the Master's name, but flagged by our engine as a statistical brushwork anomaly (likely pupil, copyist, or heavy restoration).">🚨 Catalog: "Master" ➔ AI: "Not Him / Outlier" ({{ total_demoted }})</button>
-            <button class="status-pill status-pill-promoted" onclick="filterByStatus('Promoted', this)" onmouseenter="previewVerdict('Promoted')" onmouseleave="restoreVerdict()" data-tooltip="DIRECTION 2 — REDISCOVERED MASTERWORK (Attributed to Workshop/Attributed, but AI says IT IS by the Master): Catalogued cautiously as 'Workshop', 'Studio', or 'Attributed to', but its micro-facture matches the Master's authentic touch.">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" ({{ total_promoted }})</button>
-            <button class="status-pill" onclick="filterByStatus('Canonical Master', this)" onmouseenter="previewVerdict('Canonical Master')" onmouseleave="restoreVerdict()" data-tooltip="CONFIRMED MASTERWORKS: Both the museum catalog AND our stylometry engine agree that the painting is an authentic work by the Master.">🏛️ Confirmed Masterworks ({{ total_canonical }})</button>
-            <button class="status-pill" onclick="filterByStatus('Studio / Assistant', this)" onmouseenter="previewVerdict('Studio / Assistant')" onmouseleave="restoreVerdict()" data-tooltip="CONFIRMED STUDIO / FOLLOWER: Both the museum catalog AND our stylometry engine agree that the painting was executed by a workshop assistant, pupil, or follower.">👥 Confirmed Workshop / Studio ({{ total_studio }})</button>
+            <button class="status-pill active" id="pillStatusAll" onclick="filterByStatus('all', this)" onmouseenter="previewVerdict('all')" onmouseleave="restoreVerdict()" data-tooltip="Display all paintings in the selected scope regardless of attribution status.">All Works (<span id="countPillAll">{{ total_all }}</span>)</button>
+            <button class="status-pill status-pill-divergence" id="pillStatusDivergences" onclick="filterByStatus('Divergences', this)" onmouseenter="previewVerdict('Divergences')" onmouseleave="restoreVerdict()" data-tooltip="ALL DISAGREEMENTS: Works where our quantitative brushwork analysis contradicts the museum catalog in either direction.">⚡ All Catalog ≠ AI Disagreements (<span id="countPillDivergences">{{ total_divergences }}</span>)</button>
+            <button class="status-pill status-pill-demoted" id="pillStatusDemoted" onclick="filterByStatus('Demoted', this)" onmouseenter="previewVerdict('Demoted')" onmouseleave="restoreVerdict()" data-tooltip="DIRECTION 1 — DOUBTFUL MASTERWORK (Attributed to Master, but AI says NOT by him): Officially catalogued under the Master's name, but flagged by our engine as a statistical brushwork anomaly (likely pupil, copyist, or heavy restoration).">🚨 Catalog: "Master" ➔ AI: "Not Him / Outlier" (<span id="countPillDemoted">{{ total_demoted }}</span>)</button>
+            <button class="status-pill status-pill-promoted" id="pillStatusPromoted" onclick="filterByStatus('Promoted', this)" onmouseenter="previewVerdict('Promoted')" onmouseleave="restoreVerdict()" data-tooltip="DIRECTION 2 — REDISCOVERED MASTERWORK (Attributed to Workshop/Attributed, but AI says IT IS by the Master): Catalogued cautiously as 'Workshop', 'Studio', or 'Attributed to', but its micro-facture matches the Master's authentic touch.">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" (<span id="countPillPromoted">{{ total_promoted }}</span>)</button>
+            <button class="status-pill" id="pillStatusCanonical" onclick="filterByStatus('Canonical Master', this)" onmouseenter="previewVerdict('Canonical Master')" onmouseleave="restoreVerdict()" data-tooltip="CONFIRMED MASTERWORKS: Both the museum catalog AND our stylometry engine agree that the painting is an authentic work by the Master.">🏛️ Confirmed Masterworks (<span id="countPillCanonical">{{ total_canonical }}</span>)</button>
+            <button class="status-pill" id="pillStatusStudio" onclick="filterByStatus('Studio / Assistant', this)" onmouseenter="previewVerdict('Studio / Assistant')" onmouseleave="restoreVerdict()" data-tooltip="CONFIRMED STUDIO / FOLLOWER: Both the museum catalog AND our stylometry engine agree that the painting was executed by a workshop assistant, pupil, or follower.">👥 Confirmed Workshop / Studio (<span id="countPillStudio">{{ total_studio }}</span>)</button>
             
             <input type="text" id="auditSearchInput" class="search-input" placeholder="🔍 Search title, museum, year, rationale..." oninput="handleAuditSearch()" />
             <div id="filterCountBadge" style="font-size:0.85rem; font-weight:700; color:var(--accent-cyan);">{{ total_all }} Artworks Displayed</div>
@@ -473,7 +471,10 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
 
         <div class="cards-grid">
             {% for art in summary.ranked_artworks %}
-            <div class="art-card {% if art.divergence_type == 'DEMOTED_ANOMALY' %}is-mouton-noir{% elif art.divergence_type == 'PROMOTED_AUTOGRAPH' %}is-divergence-promoted{% endif %}" data-divergence="{{ art.divergence_type }}">
+            <div class="art-card {% if art.divergence_type == 'DEMOTED_ANOMALY' %}is-mouton-noir{% elif art.divergence_type == 'PROMOTED_AUTOGRAPH' %}is-divergence-promoted{% endif %}"
+                 data-divergence="{{ art.divergence_type }}"
+                 data-framed-src="{{ art.framed_image_display_path }}"
+                 data-source-url="{{ art.source_url }}">
                 
                 {% if art.divergence_type == 'DEMOTED_ANOMALY' %}
                 <div class="divergence-banner banner-demoted" data-tooltip="DIRECTION 1 (DOUBTFUL AUTHENTICITY): The museum catalog attributes this painting to the Master, but our stylometry engine detects a strong brushwork anomaly (likely executed by a pupil, follower, copyist, or heavily restored).">
@@ -565,8 +566,8 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             <div class="lb-viewport-col">
                 <div class="lb-toolbar">
                     <div class="lb-mode-group">
-                        <button class="lb-btn active" id="lbBtnOrig" onclick="setLbMode('original')">🖼️ Original High-Res</button>
-                        <button class="lb-btn" id="lbBtnFrame" onclick="toggleLbFrame()" title="Toggle Classical Gilded Exhibition Frame">🏛️ Museum Frame</button>
+                        <button class="lb-btn active" id="lbBtnOrig" onclick="setLbMode('original')">🖼️ Isolated Canvas</button>
+                        <button class="lb-btn" id="lbBtnFrame" onclick="toggleLbFrame()" title="Toggle Authentic Museum Scan with Frame">🏛️ Original Museum Frame</button>
                         <button class="lb-btn" id="lbBtnHeatmap" onclick="setLbMode('heatmap')">🗺️ 2D Facture Heatmap</button>
                         <button class="lb-btn lb-btn-anomaly" id="lbBtnAnomalies" onclick="setLbMode('anomalies')">🎯 Anomaly Zones ("Strange Areas")</button>
                         <div class="lb-slider-wrap" id="lbOpacityWrap" style="display:none;">
@@ -647,7 +648,8 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
                 </div>
 
                 <div style="margin-top:auto; display:flex; flex-direction:column; gap:0.5rem;">
-                    <a id="lbRawLink" href="#" target="_blank" class="lb-btn" style="justify-content:center; text-decoration:none; background:#0284c7; color:#fff; border-color:#38bdf8; padding:9px;">🔍 Open Native High-Res Image in New Tab</a>
+                    <a id="lbMuseumLink" href="#" target="_blank" class="lb-btn" style="justify-content:center; text-decoration:none; background:#1e293b; color:#38bdf8; border:1px solid #38bdf8; padding:8px 12px; font-weight:700;">🏛️ Official Museum Page / Wikidata ↗</a>
+                    <a id="lbRawLink" href="#" target="_blank" class="lb-btn" style="justify-content:center; text-decoration:none; background:#0284c7; color:#fff; border-color:#38bdf8; padding:9px;">🔍 Open High-Res Scan in New Tab ↗</a>
                 </div>
             </div>
         </div>
@@ -708,6 +710,11 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         return list;
     }
 
+    let lbFramedSrc = '';
+    let lbOrigCanvasSrc = '';
+    let lbSourceUrl = '';
+    let lbViewingFramed = false;
+
     function openCardLightbox(card) {
         lbCurrentCard = card;
         const sec = card.closest('.artist-section');
@@ -725,6 +732,11 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
                 hmSrc = parts[5];
             }
         }
+
+        lbOrigCanvasSrc = origSrc;
+        lbFramedSrc = card.getAttribute('data-framed-src') || '';
+        lbSourceUrl = card.getAttribute('data-source-url') || '';
+        lbViewingFramed = false;
 
         const rankTag = card.querySelector('.rank-tag') ? card.querySelector('.rank-tag').textContent.trim() : '';
         const statusTag = card.querySelector('.status-tag') ? card.querySelector('.status-tag').outerHTML : '';
@@ -754,7 +766,32 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         document.getElementById('lbMetricCoherence').textContent = cohText;
         document.getElementById('lbMetricEntropy').textContent = entText;
         document.getElementById('lbRationale').innerHTML = diagBox;
-        document.getElementById('lbRawLink').href = origSrc;
+        document.getElementById('lbRawLink').href = resolveSrc(origSrc);
+
+        const frameBtn = document.getElementById('lbBtnFrame');
+        if (frameBtn) {
+            frameBtn.classList.remove('active');
+            if (lbFramedSrc) {
+                frameBtn.classList.remove('disabled');
+                frameBtn.title = "Afficher la photographie officielle originale avec son cadre d'époque";
+                frameBtn.innerHTML = "🏛️ Original Museum Frame";
+            } else {
+                frameBtn.classList.add('disabled');
+                frameBtn.title = "Cette œuvre a été numérisée sans cadre par l'institution (panneau ou toile nue plein cadre).";
+                frameBtn.innerHTML = "🏛️ Bare Panel (No Frame)";
+            }
+        }
+
+        const musLink = document.getElementById('lbMuseumLink');
+        if (musLink) {
+            if (lbSourceUrl) {
+                musLink.href = lbSourceUrl;
+                musLink.style.display = 'flex';
+            } else {
+                musLink.href = 'https://www.google.com/search?q=' + encodeURIComponent(title + ' ' + artistName);
+                musLink.style.display = 'flex';
+            }
+        }
 
         lbPrecomputedHeatmapImg = null;
         if (hmSrc) {
@@ -777,8 +814,9 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         lbOrig.dataset.isOutlier = card.classList.contains('is-mouton-noir') ? '1' : '0';
         lbOrig.dataset.conf = String(confVal);
         lbOrig.dataset.titleSeed = title;
-        lbOrig.src = origSrc;
+        lbOrig.src = resolveSrc(origSrc);
 
+        setLbMode('original');
         document.getElementById('artworkLightbox').style.display = 'flex';
     }
 
@@ -786,31 +824,64 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         renderLbOverlay();
     }
 
-    let lbFramed = false;
     function toggleLbFrame() {
-        lbFramed = !lbFramed;
-        const container = document.getElementById('lbCanvasContainer');
-        const btn = document.getElementById('lbBtnFrame');
-        if (container) container.classList.toggle('is-framed', lbFramed);
-        if (btn) btn.classList.toggle('active', lbFramed);
+        const frameBtn = document.getElementById('lbBtnFrame');
+        const origBtn = document.getElementById('lbBtnOrig');
         const statusEl = document.getElementById('lbModeStatusText');
-        if (statusEl) {
-            statusEl.textContent = lbFramed
-                ? '🏛️ Museum Exhibition Frame Active — Viewing painting mounted in classical gilded gallery frame.'
-                : '🖼️ Viewing Native Uncropped Canvas (Pure Painted Surface for Scientific Facture Analysis).';
+        const img = document.getElementById('lbOrigImg');
+        const rawLink = document.getElementById('lbRawLink');
+
+        if (!lbFramedSrc) {
+            if (statusEl) {
+                statusEl.textContent = "ℹ️ Cette œuvre a été numérisée sans cadre par l'institution (panneau ou toile nue plein cadre sur le site officiel).";
+            }
+            return;
+        }
+
+        lbViewingFramed = !lbViewingFramed;
+        if (lbViewingFramed) {
+            if (frameBtn) frameBtn.classList.add('active');
+            if (origBtn) origBtn.classList.remove('active');
+            if (statusEl) {
+                statusEl.textContent = "🏛️ Cliché officiel d'origine avec cadre physique du musée (numérisation non recadrée).";
+            }
+            if (img) img.src = resolveSrc(lbFramedSrc);
+            if (rawLink) rawLink.href = resolveSrc(lbFramedSrc);
+        } else {
+            if (frameBtn) frameBtn.classList.remove('active');
+            if (origBtn) origBtn.classList.add('active');
+            if (statusEl) {
+                statusEl.textContent = "🖼️ Toile isolée sans cadre (surface peinte pure pour l'analyse scientifique des touches).";
+            }
+            if (img) img.src = resolveSrc(lbOrigCanvasSrc);
+            if (rawLink) rawLink.href = resolveSrc(lbOrigCanvasSrc);
+        }
+        if (lbMode !== 'original') {
+            setLbMode('original');
+        } else {
+            renderLbOverlay();
         }
     }
 
     function setLbMode(mode) {
         lbMode = mode;
-        document.getElementById('lbBtnOrig').classList.toggle('active', mode === 'original');
+        if (mode !== 'original' && lbViewingFramed) {
+            lbViewingFramed = false;
+            const frameBtn = document.getElementById('lbBtnFrame');
+            if (frameBtn) frameBtn.classList.remove('active');
+            const img = document.getElementById('lbOrigImg');
+            if (img) img.src = resolveSrc(lbOrigCanvasSrc);
+        }
+        document.getElementById('lbBtnOrig').classList.toggle('active', mode === 'original' && !lbViewingFramed);
         document.getElementById('lbBtnHeatmap').classList.toggle('active', mode === 'heatmap');
         document.getElementById('lbBtnAnomalies').classList.toggle('active', mode === 'anomalies');
         document.getElementById('lbOpacityWrap').style.display = (mode === 'original') ? 'none' : 'flex';
 
         const statusEl = document.getElementById('lbModeStatusText');
         if (mode === 'original') {
-            statusEl.textContent = '🖼️ Viewing Uncropped Full-Resolution Canvas (Use Mouse Wheel or ➕/➖ to Zoom, Keys: [H] Heatmap, [A] Anomaly Zones)';
+            statusEl.textContent = lbViewingFramed
+                ? "🏛️ Cliché officiel d'origine avec cadre physique du musée (numérisation non recadrée)."
+                : '🖼️ Viewing Uncropped Full-Resolution Canvas (Use Mouse Wheel or ➕/➖ to Zoom, Keys: [H] Heatmap, [A] Anomaly Zones)';
         } else if (mode === 'heatmap') {
             statusEl.textContent = '🗺️ 2D Spatial Facture & Attribution Heatmap Active — Highlighting local stroke energy & Mahalanobis deviation';
         } else {
@@ -1167,19 +1238,28 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     let currentStatus = 'all';
     let currentQuery = '';
 
-    const VERDICT_EXPLANATIONS = {
-        'all': `💡 <b>How to read the Anomalies (Hover or click any button above):</b> The two anomaly directions are strictly separated: <span style="color:#fb7185; font-weight:700;">🚨 Catalog: "Master" ➔ AI: "Not Him / Outlier" ({{ total_demoted }})</span> are works officially attributed to the Master that our engine flags as doubtful/studio hands, whereas <span style="color:#34d399; font-weight:700;">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" ({{ total_promoted }})</span> are contemporaneous workshop/attributed works that our engine rehabilitates as matching the Master's authentic touch.`,
-        'Divergences': `⚡ <b>ALL CATALOG ≠ AI DISAGREEMENTS ({{ total_divergences }} Paintings = {{ total_demoted }} Doubtful Masterworks + {{ total_promoted }} Rehabilitated Workshop Works):</b> Displays every painting where quantitative brushwork stylometry contradicts the official museum attribution in either direction.`,
-        'Demoted': `🚨 <b>DIRECTION 1 — ATTRIBUTED TO MASTER, BUT AI SAYS "DOUBTFUL / NOT BY HIM" ({{ total_demoted }} Paintings):</b> These paintings are officially attributed to the Master in museum catalogs, <b>but</b> our engine detects a severe statistical departure in brushwork ductility and facture. They were likely painted by a workshop pupil, follower, copyist, or heavily overpainted.`,
-        'Promoted': `✨ <b>DIRECTION 2 — ATTRIBUTED TO WORKSHOP/ATTRIBUTED, BUT AI SAYS "BY THE MASTER!" ({{ total_promoted }} Paintings):</b> These contemporaneous paintings are cautiously classified by museums as <i>"Workshop of"</i>, <i>"Studio of"</i>, or <i>"Attributed to"</i>, <b>but</b> our engine proves their micro-facture and brushstroke fluency match the Master's authentic canonical core.`,
-        'Canonical Master': `🏛️ <b>CONFIRMED MASTERWORKS ({{ total_canonical }} Paintings):</b> Complete agreement between Art History and AI — officially attributed to the Master by the museum AND confirmed within the Master's canonical brushwork manifold by our engine.`,
-        'Studio / Assistant': `👥 <b>CONFIRMED WORKSHOP / FOLLOWER HANDS ({{ total_studio }} Paintings):</b> Complete agreement — catalogued as secondary studio/pupil/follower/imitator works AND confirmed by our engine as outside the Master's personal autograph core.`
-    };
+    function getVerdictExplanation(status) {
+        const demText = document.getElementById('countPillDemoted') ? document.getElementById('countPillDemoted').textContent : '{{ total_demoted }}';
+        const promText = document.getElementById('countPillPromoted') ? document.getElementById('countPillPromoted').textContent : '{{ total_promoted }}';
+        const divText = document.getElementById('countPillDivergences') ? document.getElementById('countPillDivergences').textContent : '{{ total_divergences }}';
+        const canText = document.getElementById('countPillCanonical') ? document.getElementById('countPillCanonical').textContent : '{{ total_canonical }}';
+        const stuText = document.getElementById('countPillStudio') ? document.getElementById('countPillStudio').textContent : '{{ total_studio }}';
+
+        const map = {
+            'all': `💡 <b>How to read the Anomalies:</b> The two anomaly directions are strictly separated: <span style="color:#fb7185; font-weight:700;">🚨 Catalog: "Master" ➔ AI: "Not Him / Outlier" (${demText})</span> are works officially attributed to the Master that our engine flags as doubtful/studio hands, whereas <span style="color:#34d399; font-weight:700;">✨ Catalog: "Workshop" ➔ AI: "Master's Hand!" (${promText})</span> are contemporaneous workshop/attributed works that our engine rehabilitates as matching the Master's authentic touch.`,
+            'Divergences': `⚡ <b>ALL CATALOG ≠ AI DISAGREEMENTS (${divText} Paintings = ${demText} Doubtful Masterworks + ${promText} Rehabilitated Workshop Works):</b> Displays every painting where quantitative brushwork stylometry contradicts the official museum attribution in either direction.`,
+            'Demoted': `🚨 <b>DIRECTION 1 — ATTRIBUTED TO MASTER, BUT AI SAYS "DOUBTFUL / NOT BY HIM" (${demText} Paintings):</b> These paintings are officially attributed to the Master in museum catalogs, <b>but</b> our engine detects a severe statistical departure in brushwork ductility and facture.`,
+            'Promoted': `✨ <b>DIRECTION 2 — ATTRIBUTED TO WORKSHOP/ATTRIBUTED, BUT AI SAYS "BY THE MASTER!" (${promText} Paintings):</b> These contemporaneous paintings are cautiously classified by museums as <i>"Workshop of"</i>, <i>"Studio of"</i>, or <i>"Attributed to"</i>, <b>but</b> our engine proves their micro-facture and brushstroke fluency match the Master's authentic canonical core.`,
+            'Canonical Master': `🏛️ <b>CONFIRMED MASTERWORKS (${canText} Paintings):</b> Complete agreement between Art History and AI — officially attributed to the Master by the museum AND confirmed within the Master's canonical brushwork manifold by our engine.`,
+            'Studio / Assistant': `👥 <b>CONFIRMED WORKSHOP / FOLLOWER HANDS (${stuText} Paintings):</b> Complete agreement — catalogued as secondary studio/pupil/follower/imitator works AND confirmed by our engine as outside the Master's personal autograph core.`
+        };
+        return map[status] || map['all'];
+    }
 
     function previewVerdict(status) {
         const box = document.getElementById('verdictExplainerBox');
         if (!box) return;
-        box.innerHTML = VERDICT_EXPLANATIONS[status] || VERDICT_EXPLANATIONS['all'];
+        box.innerHTML = getVerdictExplanation(status || 'all');
         if (status === 'Demoted') box.style.borderLeftColor = '#f43f5e';
         else if (status === 'Promoted' || status === 'Canonical Master') box.style.borderLeftColor = '#10b981';
         else if (status === 'Divergences') box.style.borderLeftColor = '#c084fc';
@@ -1220,16 +1300,15 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
 
         // Select status pill
         document.querySelectorAll('.status-pill').forEach(b => {
-            if (status === 'all' && b.textContent.includes('All Works')) b.classList.add('active');
-            else if (status === 'Canonical Master' && b.textContent.includes('Confirmed Masterworks')) b.classList.add('active');
-            else if (status === 'Divergences' && b.textContent.includes('Disagreements')) b.classList.add('active');
-            else if (status === 'Demoted' && b.textContent.includes('Not Him')) b.classList.add('active');
-            else if (status === 'Promoted' && b.textContent.includes("Master's Hand")) b.classList.add('active');
-            else if (status === 'Studio / Assistant' && b.textContent.includes('Confirmed Workshop')) b.classList.add('active');
+            if (status === 'all' && b.id === 'pillStatusAll') b.classList.add('active');
+            else if (status === 'Canonical Master' && b.id === 'pillStatusCanonical') b.classList.add('active');
+            else if (status === 'Divergences' && b.id === 'pillStatusDivergences') b.classList.add('active');
+            else if (status === 'Demoted' && b.id === 'pillStatusDemoted') b.classList.add('active');
+            else if (status === 'Promoted' && b.id === 'pillStatusPromoted') b.classList.add('active');
+            else if (status === 'Studio / Assistant' && b.id === 'pillStatusStudio') b.classList.add('active');
             else b.classList.remove('active');
         });
         currentStatus = status;
-        previewVerdict(status);
         applyFilters();
 
         // Scroll to artist section
@@ -1245,6 +1324,60 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     function applyFilters() {
         let totalVisible = 0;
         const sections = document.querySelectorAll('.artist-section');
+
+        // 1. Compute dynamic verdict counts scoped to the selected Atelier and search query
+        let scopeAll = 0;
+        let scopeDivergences = 0;
+        let scopeDemoted = 0;
+        let scopePromoted = 0;
+        let scopeCanonical = 0;
+        let scopeStudio = 0;
+
+        sections.forEach(sec => {
+            const artistName = sec.getAttribute('data-artist');
+            const artistMatch = (currentArtist === 'all' || artistName.toLowerCase().includes(currentArtist.toLowerCase()));
+            if (!artistMatch) return;
+
+            sec.querySelectorAll('.art-card').forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                const museum = card.querySelector('.card-museum').textContent.toLowerCase();
+                const attr = card.querySelector('.card-attr').textContent.toLowerCase();
+                const queryMatch = (!currentQuery || title.includes(currentQuery) || museum.includes(currentQuery) || attr.includes(currentQuery));
+                if (!queryMatch) return;
+
+                const statusTag = card.querySelector('.status-tag').textContent.trim();
+                const divType = card.getAttribute('data-divergence');
+
+                scopeAll++;
+                if (divType === 'DEMOTED_ANOMALY') {
+                    scopeDemoted++;
+                    scopeDivergences++;
+                } else if (divType === 'PROMOTED_AUTOGRAPH') {
+                    scopePromoted++;
+                    scopeDivergences++;
+                } else if (divType === 'NONE' && statusTag.includes('Canonical')) {
+                    scopeCanonical++;
+                } else if (divType === 'NONE' && statusTag.includes('Studio')) {
+                    scopeStudio++;
+                }
+            });
+        });
+
+        // Update verdict pill counts
+        const elAll = document.getElementById('countPillAll');
+        if (elAll) elAll.textContent = scopeAll.toLocaleString();
+        const elDiv = document.getElementById('countPillDivergences');
+        if (elDiv) elDiv.textContent = scopeDivergences.toLocaleString();
+        const elDem = document.getElementById('countPillDemoted');
+        if (elDem) elDem.textContent = scopeDemoted.toLocaleString();
+        const elProm = document.getElementById('countPillPromoted');
+        if (elProm) elProm.textContent = scopePromoted.toLocaleString();
+        const elCan = document.getElementById('countPillCanonical');
+        if (elCan) elCan.textContent = scopeCanonical.toLocaleString();
+        const elStu = document.getElementById('countPillStudio');
+        if (elStu) elStu.textContent = scopeStudio.toLocaleString();
+
+        // 2. Filter sections and cards, and dynamically renumber visible works
         sections.forEach(sec => {
             const artistName = sec.getAttribute('data-artist');
             const artistMatch = (currentArtist === 'all' || artistName.toLowerCase().includes(currentArtist.toLowerCase()));
@@ -1276,6 +1409,9 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
                     card.style.display = '';
                     sectionVisibleCards++;
                     totalVisible++;
+                    // Dynamic renumbering of visible artworks
+                    const rankEl = card.querySelector('.rank-tag');
+                    if (rankEl) rankEl.textContent = '#' + sectionVisibleCards;
                 } else {
                     card.style.display = 'none';
                 }
@@ -1285,6 +1421,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         });
 
         document.getElementById('filterCountBadge').textContent = totalVisible.toLocaleString() + ' Artworks Displayed';
+        previewVerdict(currentStatus);
     }
     </script>
 </body>
@@ -1356,6 +1493,8 @@ def export_audit_tabular_data(summaries: list[ArtistCorpusAuditSummary], output_
                 "reference_shrinkage": round(float(s.reference_shrinkage), 6),
                 "reference_condition_number": round(float(s.reference_condition_number), 2),
                 "outlier_threshold": round(float(s.outlier_distance_threshold), 4),
+                "source_url": str(a.source_url),
+                "framed_image_display_path": str(a.framed_image_display_path),
                 "local_path": str(a.local_path),
             })
 

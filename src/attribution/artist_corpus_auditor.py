@@ -59,6 +59,8 @@ class CanvasAuditResult:
     divergence_type: str = "NONE"  # 'DEMOTED_ANOMALY', 'PROMOTED_AUTOGRAPH', 'NONE'
     suggested_alternative_master: Optional[str] = None # Stylistically closest alternative master/circle if demoted/outlier
     alternative_affinity_score: float = 0.0 # Match affinity percentage (0 to 100%)
+    source_url: str = "" # Canonical museum or Wikidata item URL
+    framed_image_display_path: str = "" # Authentic uncropped scan with original physical frame (if available)
 
 
 @dataclass
@@ -393,6 +395,24 @@ class ArtistCorpusAuditor:
             has_hm = heatmap_file.exists()
             hm_path = f"heatmaps/{artist_folder}/{rec['artwork_id']}_heatmap.jpg" if has_hm else ""
 
+            # Check for authentic scan with physical frame
+            framed_file = corpus_dir / "with_frame" / f"{rec['artwork_id']}.jpg"
+            has_framed = framed_file.exists()
+            framed_display_path = f"../raw/contested_masters/{artist_folder}/with_frame/{rec['artwork_id']}.jpg" if has_framed else ""
+
+            # Canonical source url resolution
+            aid = rec.get("artwork_id", "")
+            source_url = rec.get("source_url", "")
+            if not source_url:
+                if aid.startswith("wd_"):
+                    source_url = f"https://www.wikidata.org/wiki/{aid[3:]}"
+                elif aid.startswith("nga_"):
+                    source_url = f"https://www.nga.gov/collection/art-object-page.{aid[4:]}.html"
+                elif aid.startswith("cma_"):
+                    source_url = f"https://www.clevelandart.org/art/{aid[4:]}"
+                elif "louvre" in rec.get("museum", "").lower():
+                    source_url = "https://collections.louvre.fr/en/"
+
             audit_results.append(CanvasAuditResult(
                 artwork_id=rec["artwork_id"],
                 title=rec["title"],
@@ -417,6 +437,8 @@ class ArtistCorpusAuditor:
                 ductus_entropy=d["entropy"],
                 conformal_p_value=conformal_p,
                 divergence_type=divergence_type,
+                source_url=source_url,
+                framed_image_display_path=framed_display_path,
             ))
 
         # Automated title disambiguation: if an artist has multiple distinct works sharing the same title,
