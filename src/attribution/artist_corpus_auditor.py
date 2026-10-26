@@ -415,6 +415,16 @@ class ArtistCorpusAuditor:
                 divergence_type=divergence_type,
             ))
 
+        # Automated title disambiguation: if an artist has multiple distinct works sharing the same title,
+        # append the institutional repository to clearly identify each physical painting
+        from collections import Counter
+        title_counts = Counter(r.title.strip().lower() for r in audit_results)
+        for r in audit_results:
+            if title_counts[r.title.strip().lower()] > 1 and r.museum and r.museum != "Unknown" and not r.museum.startswith("http"):
+                short_museum = r.museum.split(",")[0].replace("Department of Paintings of the ", "").strip()
+                if short_museum.lower() not in r.title.lower():
+                    r.title = f"{r.title} ({short_museum})"
+
         # Sort ranked by Mahalanobis distance (ascending: canonical -> anomalous)
         audit_results.sort(key=lambda r: r.mahalanobis_distance)
 

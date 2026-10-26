@@ -2,8 +2,9 @@
 Automated Algorithmic Corpus Deduplication Pipeline.
 Performs 100% automated computer vision deduplication across all 12 master ateliers
 using 256-bit perceptual difference hashing (dHash), 3D color structure histograms,
-and aspect ratio consistency. Retains the highest-resolution, sharpest image for each
-physical artwork cluster. Zero manual hardcoded ID lists or title rules.
+geometric ORB/RANSAC keypoint matching, and institutional provenance verification.
+Retains the highest-resolution, sharpest image for each physical artwork cluster.
+Zero manual hardcoded ID lists or title rules.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 if hasattr(sys.stdout, "reconfigure"):
     try:
@@ -54,9 +55,10 @@ def run_algorithmic_deduplication() -> Tuple[int, int]:
         records_by_artist[adir].append(r)
 
     deduplicator = AlgorithmicArtworkDeduplicator(
-        hamming_threshold=0.14,
+        hamming_threshold=0.16,
         color_threshold=0.88,
         aspect_ratio_tolerance=0.18,
+        ransac_inlier_threshold=18,
     )
 
     masters_dir = Path("data/raw/contested_masters")
@@ -81,7 +83,7 @@ def run_algorithmic_deduplication() -> Tuple[int, int]:
             json.dump(kept, f, indent=2, ensure_ascii=False)
 
         logger.info(
-            "[%s] Deduplicated: %d -> %d artworks (%d duplicates pruned by vision)",
+            "[%s] Deduplicated: %d -> %d artworks (%d duplicates pruned by vision & provenance)",
             artist_dir.name, len(artist_recs), len(kept), len(pruned)
         )
         for p in pruned:
