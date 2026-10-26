@@ -4,7 +4,7 @@
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-orange.svg)](https://pytorch.org/)
 [![DINOv2](https://img.shields.io/badge/embeddings-DINOv2%20%2F%20Gram-purple.svg)](https://github.com/facebookresearch/dinov2)
 [![Clustering: HDBSCAN](https://img.shields.io/badge/clustering-HDBSCAN%20%2B%20UMAP-yellow.svg)](https://scikit-learn.org/)
-[![Tests: 33 Passing](https://img.shields.io/badge/tests-33%20passed-brightgreen.svg)](tests/)
+[![Tests: 37 Passing](https://img.shields.io/badge/tests-37%20passed-brightgreen.svg)](tests/)
 [![IIIF API Compliant](https://img.shields.io/badge/IIIF-v2%20%26%20v3-red.svg)](https://iiif.io/)
 [![12,300+ Hi-Res Paintings](https://img.shields.io/badge/corpus-12346%20paintings%20(4k)-blue.svg)](data/processed/)
 [![12 Historical Workshops](https://img.shields.io/badge/audited%20masters-12%20workshops%20(1137%20works)-indigo.svg)](data/processed/)
@@ -33,12 +33,18 @@
 ArtStylometry includes a unified, 100% English responsive web portal that integrates four specialized analytical viewports into a single browser application served locally via Python:
 
 ```bash
-# Launch the unified portal (auto-selects port, launches default browser):
+# Option A: Standard Launch (auto-selects port, launches default browser):
 # Windows:
 start.bat
-
 # Linux / macOS:
 ./start.sh
+
+# Option B: Dual-Engine Launch (starts server, opens browser, AND continuously
+# populates your local database in the background with paintings up to 60 GB):
+# Windows:
+start_and_harvest.bat
+# Linux / macOS:
+./start_and_harvest.sh
 ```
 
 ### 1. Unified Master Portal Dashboard
@@ -393,15 +399,22 @@ cd ArtStylometry
 pip install -r requirements.txt
 ```
 
-### 2. Launch the Unified Web Portal
+### 2. Launch the Unified Web Portal & Background Ingestion
 Start the intelligent local HTTP server and open the web portal in your default browser:
 
 ```bash
+# Standard Launch:
 # Windows:
 start.bat
-
 # Linux / macOS:
 ./start.sh
+
+# Dual-Engine Launch: starts portal AND continuously populates local database
+# in the background with paintings up to 60 GB quota cap:
+# Windows:
+start_and_harvest.bat
+# Linux / macOS:
+./start_and_harvest.sh
 ```
 *Opens `http://localhost:8080/` (or auto-selects next available port if 8080 is occupied).*
 
@@ -435,6 +448,8 @@ ArtStylometry/
 ├── .gitignore                      # Git ignore patterns (strict raw-data exclusion)
 ├── start.bat                       # Windows one-click local server launcher (auto-port & browser)
 ├── start.sh                        # Linux / macOS one-click launcher
+├── start_and_harvest.bat           # Windows dual launcher (server + background DB populator)
+├── start_and_harvest.sh            # Linux / macOS dual launcher
 ├── index.html                      # Unified master portal (Audit, Manifold 3D, Gallery, Exports)
 │
 ├── data/
@@ -475,6 +490,7 @@ ArtStylometry/
 │
 ├── scripts/
 │   ├── serve.py                    # Intelligent multi-threaded HTTP server with auto-port fallback
+│   ├── serve_and_harvest.py        # Dual HTTP server with concurrent background museum harvester
 │   ├── audit_contested_masters.py  # Connoisseurship audit CLI for 12 master workshops
 │   ├── scale_manifold_clustering.py # Scaled feature extraction & 3D manifold export (9,304 works)
 │   ├── generate_corpus_heatmaps.py # Continuous 2D spatial heatmap generator
@@ -493,6 +509,7 @@ ArtStylometry/
 │   └── pipeline.py                 # Central CLI pipeline orchestrator
 │
 └── tests/                          # Comprehensive unit & integration tests
+    ├── test_serve_and_harvest.py   # Dual-engine server and background harvester tests
     ├── test_batch_harvester.py     # Batch downloader & Lanczos rescaling tests
     ├── test_contested_masters.py   # Attribution categorizer & anomaly ranking tests
     ├── test_acquisition.py         # IIIF client & deep-zoom reconstructor tests

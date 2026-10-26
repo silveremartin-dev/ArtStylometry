@@ -465,8 +465,10 @@ class BatchHarvester:
             candidates = self.fetch_met_painting_candidates(limit=total_limit)
         elif source == "wikidata":
             candidates = self.fetch_wikidata_museum_candidates(limit=total_limit)
-        elif source == "extended":
+        elif source in ("extended", "met_wikidata"):
             candidates = self.fetch_all_candidates(limit=total_limit, sources=["met", "wikidata"])
+        elif source in ("full", "max", "maximum", "planetary", "all_sources"):
+            candidates = self.fetch_all_candidates(limit=total_limit, sources=["cma", "nga", "met", "wikidata"])
         else:
             candidates = self.fetch_all_candidates(limit=total_limit, sources=["nga", "cma"])
 
