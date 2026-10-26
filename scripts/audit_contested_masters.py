@@ -1016,15 +1016,29 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             }
         }
 
-        const meanS = sumScore / (gridN * gridN);
-        const stdS = Math.sqrt(Math.max(1e-5, sumSq / (gridN * gridN) - meanS * meanS));
+        let intSum = 0, intSq = 0, intCount = 0;
+        for (let gy = 2; gy < gridN - 2; gy++) {
+            for (let gx = 2; gx < gridN - 2; gx++) {
+                const sv = scores[gy * gridN + gx];
+                intSum += sv;
+                intSq += sv * sv;
+                intCount++;
+            }
+        }
+        const meanS = intCount > 0 ? intSum / intCount : sumScore / (gridN * gridN);
+        const stdS = Math.sqrt(Math.max(1e-5, (intCount > 0 ? intSq / intCount : sumSq / (gridN * gridN)) - meanS * meanS));
 
         const zScores = new Float32Array(gridN * gridN);
         let minS = Infinity, maxS = -Infinity;
-        for (let i = 0; i < gridN * gridN; i++) {
-            zScores[i] = Math.abs(scores[i] - meanS) / stdS;
-            if (scores[i] < minS) minS = scores[i];
-            if (scores[i] > maxS) maxS = scores[i];
+        for (let gy = 0; gy < gridN; gy++) {
+            for (let gx = 0; gx < gridN; gx++) {
+                const i = gy * gridN + gx;
+                zScores[i] = Math.abs(scores[i] - meanS) / stdS;
+                if (gy >= 2 && gy < gridN - 2 && gx >= 2 && gx < gridN - 2) {
+                    if (scores[i] < minS) minS = scores[i];
+                    if (scores[i] > maxS) maxS = scores[i];
+                }
+            }
         }
 
         if (lbMode === 'heatmap') {
@@ -1060,8 +1074,8 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
             ctx.fillRect(0, 0, w, h);
 
             const candidates = [];
-            for (let gy = 1; gy < gridN - 1; gy++) {
-                for (let gx = 1; gx < gridN - 1; gx++) {
+            for (let gy = 2; gy < gridN - 2; gy++) {
+                for (let gx = 2; gx < gridN - 2; gx++) {
                     const idx = gy * gridN + gx;
                     candidates.push({ gx, gy, z: zScores[idx], raw: scores[idx] });
                 }

@@ -51,7 +51,7 @@ class PatchGrid:
 
 
 class ArtworkTiler:
-    """Slices gigapixel artworks into high-fidelity micro-patches."""
+    """Slices gigapixel artworks into high-fidelity micro-patches with automatic frame isolation."""
 
     def __init__(
         self,
@@ -59,6 +59,7 @@ class ArtworkTiler:
         stride: Optional[int] = None,
         min_variance: float = 15.0,
         discard_borders: bool = True,
+        auto_crop_frame: bool = True,
     ) -> None:
         """
         Args:
@@ -66,11 +67,189 @@ class ArtworkTiler:
             stride: Stride between successive patches. If None, defaults to patch_size (non-overlapping).
             min_variance: Minimum pixel intensity variance required to retain a patch (filters blank margins).
             discard_borders: If True, skips incomplete patches at edges that are smaller than patch_size.
+            auto_crop_frame: If True, automatically detects and crops picture frames, mounts, and text banners.
         """
         self.patch_size = patch_size
         self.stride = stride or patch_size
         self.min_variance = min_variance
         self.discard_borders = discard_borders
+        self.auto_crop_frame = auto_crop_frame
+
+    @staticmethod
+    def detect_canvas_bbox(image: Image.Image | np.ndarray) -> Tuple[int, int, int, int]:
+        """
+        Detects the true painted canvas bounding box (x0, y0, x1, y1), isolating the artwork from:
+        1. Uniform outer studio margins, cardboard mounts, and archive text strips/banners.
+        2. Rectilinear gilded/wooden picture frames via directional rabbet gradient projection.
+        """
+        if isinstance(image, Image.Image):
+            arr = np.array(image.convert("RGB"))
+        else:
+            arr = np.asarray(image)
+
+        h, w = arr.shape[:2]
+        if h < 64 or w < 64 or arr.ndim < 3:
+            return 0, 0, w, h
+
+        rgb = arr[:, :, :3].astype(np.float32)
+        lum = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
+
+        # Stage 1: Strip uniform margins, cardboard passe-partouts, and archive text banners
+        y0, y1, x0, x1 = 0, h, 0, w
+        max_strip_y = int(h * 0.26)
+        max_strip_x = int(w * 0.26)
+
+        for y in range(max_strip_y):
+            row = lum[y, int(w * 0.15) : int(w * 0.85)]
+            if np.std(row) < 13.5 or np.percentile(row, 30) > 222 or np.percentile(row, 70) < 18:
+                y0 = y + 1
+            else:
+                break
+        else:
+            y0 = 0
+
+        for y in range(h - 1, h - max_strip_y, -1):
+            row = lum[y, int(w * 0.15) : int(w * 0.85)]
+            p75 = np.percentile(row, 75)
+            p50 = np.percentile(row, 50)
+            if np.std(row) < 13.5 or (p75 > 220 and p50 > 195) or (np.percentile(row, 70) < 20):
+                y1 = y
+            else:
+                break
+        else:
+            y1 = h
+
+        for x in range(max_strip_x):
+            col = lum[y0:y1, x]
+            if col.size == 0:
+                break
+            mid = col[int(col.size * 0.15) : int(col.size * 0.85)]
+            if np.std(mid) < 13.5 or np.percentile(mid, 30) > 222 or np.percentile(mid, 70) < 18:
+                x0 = x + 1
+            else:
+                break
+        else:
+            x0 = 0
+
+        for x in range(w - 1, w - max_strip_x, -1):
+            col = lum[y0:y1, x]
+            if col.size == 0:
+                break
+            mid = col[int(col.size * 0.15) : int(col.size * 0.85)]
+            if np.std(mid) < 13.5 or np.percentile(mid, 30) > 222 or np.percentile(mid, 70) < 18:
+                x1 = x
+            else:
+                break
+        else:
+            x1 = w
+
+        # Stage 2: Detect rectilinear picture frame rabbets on [y0:y1, x0:x1]
+        sub_rgb = rgb[y0:y1, x0:x1]
+        sub_lum = lum[y0:y1, x0:x1]
+        sh, sw = sub_lum.shape
+        if sh < 80 or sw < 80:
+            return x0, y0, x1, y1
+
+        gy = np.abs(np.diff(sub_lum, axis=0))
+        gx = np.abs(np.diff(sub_lum, axis=1))
+
+        core_y0, core_y1 = int(sh * 0.26), int(sh * 0.74)
+        core_x0, core_x1 = int(sw * 0.26), int(sw * 0.74)
+        core_rgb = np.median(sub_rgb[core_y0:core_y1, core_x0:core_x1].reshape(-1, 3), axis=0)
+
+        prof_top = np.mean(gy[: int(sh * 0.24), int(sw * 0.22) : int(sw * 0.78)], axis=1)
+        prof_bot = np.mean(gy[sh - 1 - int(sh * 0.24) :, int(sw * 0.22) : int(sw * 0.78)][::-1], axis=1)
+        prof_left = np.mean(gx[int(sh * 0.22) : int(sh * 0.78), : int(sw * 0.24)], axis=0)
+        prof_right = np.mean(gx[int(sh * 0.22) : int(sh * 0.78), sw - 1 - int(sw * 0.24) :][:, ::-1], axis=0)
+
+        base_y = float(np.median(np.mean(gy[core_y0:core_y1, core_x0:core_x1], axis=1))) + 1.5
+        base_x = float(np.median(np.mean(gx[core_y0:core_y1, core_x0:core_x1], axis=0))) + 1.5
+
+        def find_rabbet(prof: np.ndarray, base: float, is_axis_y: bool, from_end: bool) -> Tuple[int, float]:
+            n = len(prof)
+            min_d = max(3, int(n * 0.05))
+            if n <= min_d + 2:
+                return 0, 0.0
+            kernel = np.array([0.25, 0.5, 0.25])
+            sprof = np.convolve(prof, kernel, mode="same")
+            ratios = sprof / base
+            best_d = 0
+            for d in range(n - 2, min_d - 1, -1):
+                if ratios[d] >= 2.15 and ratios[d] >= ratios[d - 1] and ratios[d] >= ratios[d + 1]:
+                    if is_axis_y:
+                        if not from_end:
+                            outer_strip = sub_rgb[:d, int(sw * 0.22) : int(sw * 0.78)]
+                            inner_strip = sub_rgb[d + 2 : min(sh, d + 2 + max(8, int(sh * 0.06))), int(sw * 0.22) : int(sw * 0.78)]
+                        else:
+                            outer_strip = sub_rgb[sh - d :, int(sw * 0.22) : int(sw * 0.78)]
+                            inner_strip = sub_rgb[max(0, sh - d - 2 - max(8, int(sh * 0.06))) : sh - d - 2, int(sw * 0.22) : int(sw * 0.78)]
+                    else:
+                        if not from_end:
+                            outer_strip = sub_rgb[int(sh * 0.22) : int(sh * 0.78), :d]
+                            inner_strip = sub_rgb[int(sh * 0.22) : int(sh * 0.78), d + 2 : min(sw, d + 2 + max(8, int(sw * 0.06)))]
+                        else:
+                            outer_strip = sub_rgb[int(sh * 0.22) : int(sh * 0.78), sw - d :]
+                            inner_strip = sub_rgb[int(sh * 0.22) : int(sh * 0.78), max(0, sw - d - 2 - max(8, int(sw * 0.06))) : sw - d - 2]
+                    if outer_strip.size == 0 or inner_strip.size == 0:
+                        continue
+                    outer_med = np.median(outer_strip.reshape(-1, 3), axis=0)
+                    inner_med = np.median(inner_strip.reshape(-1, 3), axis=0)
+                    diff_inner = float(np.linalg.norm(outer_med - inner_med))
+                    diff_core = float(np.linalg.norm(outer_med - core_rgb))
+                    if diff_inner >= 16.0 or diff_core >= 24.0 or ratios[d] >= 3.2:
+                        best_d = d + 3
+                        break
+            return best_d, float(np.max(ratios[min_d:]))
+
+        dt, rt = find_rabbet(prof_top, base_y, True, False)
+        db, rb = find_rabbet(prof_bot, base_y, True, True)
+        dl, rl = find_rabbet(prof_left, base_x, False, False)
+        dr, rr = find_rabbet(prof_right, base_x, False, True)
+
+        active_sides = sum(1 for d in (dt, db, dl, dr) if d > 0)
+        if active_sides >= 2 or max(rt, rb, rl, rr) >= 3.6:
+            if dt > int(sh * 0.03) and db > int(sh * 0.03):
+                ref_d = int(min(dt / sh, db / sh) * sw * 0.85)
+                frame_med = np.median(sub_rgb[:dt, int(sw * 0.25) : int(sw * 0.75)].reshape(-1, 3), axis=0)
+                if dl < ref_d // 2 and ref_d > 8:
+                    l_med = np.median(sub_rgb[int(sh * 0.25) : int(sh * 0.75), :ref_d].reshape(-1, 3), axis=0)
+                    if np.linalg.norm(l_med - frame_med) < 22.0:
+                        dl = ref_d
+                if dr < ref_d // 2 and ref_d > 8:
+                    r_med = np.median(sub_rgb[int(sh * 0.25) : int(sh * 0.75), sw - ref_d :].reshape(-1, 3), axis=0)
+                    if np.linalg.norm(r_med - frame_med) < 22.0:
+                        dr = ref_d
+            if dl > int(sw * 0.03) and dr > int(sw * 0.03):
+                ref_d = int(min(dl / sw, dr / sw) * sh * 0.85)
+                frame_med = np.median(sub_rgb[int(sh * 0.25) : int(sh * 0.75), :dl].reshape(-1, 3), axis=0)
+                if dt < ref_d // 2 and ref_d > 8:
+                    t_med = np.median(sub_rgb[:ref_d, int(sw * 0.25) : int(sw * 0.75)].reshape(-1, 3), axis=0)
+                    if np.linalg.norm(t_med - frame_med) < 22.0:
+                        dt = ref_d
+                if db < ref_d // 2 and ref_d > 8:
+                    b_med = np.median(sub_rgb[sh - ref_d :, int(sw * 0.25) : int(sw * 0.75)].reshape(-1, 3), axis=0)
+                    if np.linalg.norm(b_med - frame_med) < 22.0:
+                        db = ref_d
+
+            y0 += dt
+            y1 -= db
+            x0 += dl
+            x1 -= dr
+
+        if x1 - x0 < int(w * 0.4) or y1 - y0 < int(h * 0.4):
+            return 0, 0, w, h
+
+        return x0, y0, x1, y1
+
+    @classmethod
+    def crop_frame(cls, image: Image.Image | np.ndarray) -> np.ndarray:
+        """Returns the RGB NumPy array cropped to the isolated canvas bounding box."""
+        if isinstance(image, Image.Image):
+            arr = np.array(image.convert("RGB"))
+        else:
+            arr = np.asarray(image)
+        x0, y0, x1, y1 = cls.detect_canvas_bbox(arr)
+        return arr[y0:y1, x0:x1]
 
     def slice_image(self, image: Image.Image | np.ndarray) -> PatchGrid:
         """
@@ -81,6 +260,10 @@ class ArtworkTiler:
             arr = np.array(image.convert("RGB"))
         else:
             arr = np.asarray(image)
+
+        if self.auto_crop_frame and arr.ndim == 3 and min(arr.shape[:2]) >= 128:
+            x0, y0, x1, y1 = self.detect_canvas_bbox(arr)
+            arr = arr[y0:y1, x0:x1]
 
         h, w = arr.shape[:2]
         patches: List[np.ndarray] = []
@@ -162,7 +345,10 @@ class ArtworkTiler:
             arr = np.array(pil_img)
         else:
             arr = np.asarray(image)
-            pil_img = Image.fromarray(arr)
+
+        if self.auto_crop_frame and arr.ndim == 3 and min(arr.shape[:2]) >= 128:
+            x0, y0, x1, y1 = self.detect_canvas_bbox(arr)
+            arr = arr[y0:y1, x0:x1]
 
         h, w = arr.shape[:2]
         patches: List[np.ndarray] = []

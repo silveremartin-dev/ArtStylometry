@@ -1055,8 +1055,15 @@
                     if (s > maxS) maxS = s;
                 }
             }
-            const mean = sum / (gridN*gridN);
-            const std = Math.sqrt(Math.max(1e-5, sumSq/(gridN*gridN) - mean*mean));
+            let intSum = 0, intSq = 0, intCnt = 0;
+            for (let gy = 2; gy < gridN - 2; gy++) {
+                for (let gx = 2; gx < gridN - 2; gx++) {
+                    const sv = scores[gy*gridN+gx];
+                    intSum += sv; intSq += sv*sv; intCnt++;
+                }
+            }
+            const mean = intCnt > 0 ? intSum / intCnt : sum / (gridN*gridN);
+            const std = Math.sqrt(Math.max(1e-5, (intCnt > 0 ? intSq / intCnt : sumSq/(gridN*gridN)) - mean*mean));
 
             if (modalMode === 'heatmap') {
                 const hc = document.createElement('canvas');
@@ -1078,8 +1085,8 @@
                 ctx.fillStyle = 'rgba(4, 9, 20, 0.48)';
                 ctx.fillRect(0, 0, w, h);
                 const cands = [];
-                for (let gy = 1; gy < gridN - 1; gy++) {
-                    for (let gx = 1; gx < gridN - 1; gx++) {
+                for (let gy = 2; gy < gridN - 2; gy++) {
+                    for (let gx = 2; gx < gridN - 2; gx++) {
                         const z = Math.abs(scores[gy*gridN+gx] - mean) / std;
                         cands.push({ gx, gy, z });
                     }

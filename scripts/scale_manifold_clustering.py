@@ -23,6 +23,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.embeddings.micro_extractor import MicroFactureExtractor
+from src.preprocessing.tiler import ArtworkTiler
 from src.visualization.manifold_explorer import export_manifold_explorer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -116,7 +117,8 @@ def extract_single_feature(rec: Dict[str, Any]) -> Optional[np.ndarray]:
     try:
         ext = get_extractor()
         with Image.open(rec["local_path"]) as im:
-            crop = np.asarray(im.resize((224, 224)).convert("RGB"))
+            canvas_arr = ArtworkTiler.crop_frame(im.convert("RGB"))
+            crop = np.asarray(Image.fromarray(canvas_arr).resize((224, 224)))
         res = ext.extract_patch(crop)
         return res.vector
     except Exception:
@@ -124,6 +126,7 @@ def extract_single_feature(rec: Dict[str, Any]) -> Optional[np.ndarray]:
 
 
 def main() -> None:
+    t0 = time.time()
     records = load_all_records()
     logger.info("Total catalogued paintings with verified files: %d", len(records))
 

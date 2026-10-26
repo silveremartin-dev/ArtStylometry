@@ -87,3 +87,24 @@ def test_craquelure_detector_synthetic_crack():
     assert cracked_mask.crack_density > 0.01
     assert cracked_mask.cleanliness_score < clean_mask.cleanliness_score
     assert np.any(cracked_mask.binary_mask[40:42, 10:90])
+
+
+def test_detect_canvas_bbox_and_frame_isolation():
+    np.random.seed(123)
+    # Create a 500x500 image with a 40px white mount + 30px gilded frame around a 360x360 dark painting
+    framed = np.full((500, 500, 3), 245, dtype=np.uint8)
+    # Gilded frame region [40:460, 40:460]
+    framed[40:460, 40:460] = np.array([195, 155, 55], dtype=np.uint8)
+    # Sharp inner rabbet line at [68:70] and [430:432]
+    framed[68:432, 68:432] = 15
+    # Textured interior canvas [70:430, 70:430]
+    framed[70:430, 70:430] = np.random.randint(35, 120, (360, 360, 3), dtype=np.uint8)
+
+    x0, y0, x1, y1 = ArtworkTiler.detect_canvas_bbox(framed)
+    assert 60 <= x0 <= 80
+    assert 60 <= y0 <= 80
+    assert 420 <= x1 <= 440
+    assert 420 <= y1 <= 440
+
+    cropped = ArtworkTiler.crop_frame(framed)
+    assert cropped.shape[0] < 380 and cropped.shape[1] < 380
