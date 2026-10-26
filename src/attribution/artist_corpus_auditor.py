@@ -375,8 +375,12 @@ class ArtistCorpusAuditor:
                     diag = f"Catalogued cautiously as '{rec['official_attribution']}', yet micro-facture aligns tightly with {artist_name}'s autograph core ({dist:.2f} M-dist vs {canvas_sigma:.2f} canonical median, p={conformal_p:.3f}). Strong candidate for the Master's hand."
                 else:
                     divergence_type = "NONE"
-                    verdict = "STUDIO_WORKSHOP_HAND"
-                    is_black_sheep = False
+                    if dist > canvas_demote_threshold:
+                        verdict = "BLACK_SHEEP_OUTLIER"
+                        is_black_sheep = True
+                    else:
+                        verdict = "STUDIO_WORKSHOP_HAND"
+                        is_black_sheep = False
                     if is_post_mortem or rec["attribution_category"] == "imitator_fake":
                         diag = f"Confirmed non-autograph execution ('{rec['official_attribution']}', {rec['creation_date']}; {dist:.2f} M-dist). Outside {artist_name}'s personal lifetime manifold."
                     else:
