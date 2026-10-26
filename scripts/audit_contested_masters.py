@@ -335,6 +335,14 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         .lb-canvas-container.no-transition {
             transition: none !important;
         }
+        .lb-canvas-container.is-framed {
+            padding: 24px;
+            background: linear-gradient(135deg, #2b1f14 0%, #170f07 100%);
+            border: 14px ridge #d4af37;
+            outline: 5px solid #5a3d1b;
+            box-shadow: 0 25px 65px rgba(0, 0, 0, 0.95), inset 0 0 20px rgba(0, 0, 0, 0.85);
+            border-radius: 6px;
+        }
         #lbOrigImg {
             max-width: calc(96vw - 440px);
             max-height: calc(92vh - 125px);
@@ -515,6 +523,12 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
                         </div>
                     </div>
 
+                    {% if art.suggested_alternative_master %}
+                    <div style="margin-top: 6px; padding: 4px 8px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; font-size: 0.72rem; color: #38bdf8; display: flex; align-items: center; gap: 0.35rem;">
+                        <span>💡 Suggested Hand:</span> <b style="color:#f8fafc;">{{ art.suggested_alternative_master }}</b> <span style="color:#94a3b8;">({{ art.alternative_affinity_score|round }}% affinity)</span>
+                    </div>
+                    {% endif %}
+
                     <div class="diag-box {% if art.divergence_type == 'DEMOTED_ANOMALY' %}is-mouton{% elif art.divergence_type == 'PROMOTED_AUTOGRAPH' %}is-promoted{% endif %}">
                         {% if art.divergence_type == 'DEMOTED_ANOMALY' %}
                         <div class="mouton-alert">🚨 CATALOG: "MASTER" ➔ AI: "DOUBTFUL / OUTLIER"</div>
@@ -552,6 +566,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
                 <div class="lb-toolbar">
                     <div class="lb-mode-group">
                         <button class="lb-btn active" id="lbBtnOrig" onclick="setLbMode('original')">🖼️ Original High-Res</button>
+                        <button class="lb-btn" id="lbBtnFrame" onclick="toggleLbFrame()" title="Toggle Classical Gilded Exhibition Frame">🏛️ Museum Frame</button>
                         <button class="lb-btn" id="lbBtnHeatmap" onclick="setLbMode('heatmap')">🗺️ 2D Facture Heatmap</button>
                         <button class="lb-btn lb-btn-anomaly" id="lbBtnAnomalies" onclick="setLbMode('anomalies')">🎯 Anomaly Zones ("Strange Areas")</button>
                         <div class="lb-slider-wrap" id="lbOpacityWrap" style="display:none;">
@@ -769,6 +784,21 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
 
     function onLbImageLoaded() {
         renderLbOverlay();
+    }
+
+    let lbFramed = false;
+    function toggleLbFrame() {
+        lbFramed = !lbFramed;
+        const container = document.getElementById('lbCanvasContainer');
+        const btn = document.getElementById('lbBtnFrame');
+        if (container) container.classList.toggle('is-framed', lbFramed);
+        if (btn) btn.classList.toggle('active', lbFramed);
+        const statusEl = document.getElementById('lbModeStatusText');
+        if (statusEl) {
+            statusEl.textContent = lbFramed
+                ? '🏛️ Museum Exhibition Frame Active — Viewing painting mounted in classical gilded gallery frame.'
+                : '🖼️ Viewing Native Uncropped Canvas (Pure Painted Surface for Scientific Facture Analysis).';
+        }
     }
 
     function setLbMode(mode) {
@@ -1316,6 +1346,8 @@ def export_audit_tabular_data(summaries: list[ArtistCorpusAuditSummary], output_
                 "verdict": a.verdict,
                 "is_black_sheep": bool(a.is_black_sheep),
                 "divergence_type": a.divergence_type,
+                "suggested_alternative_master": a.suggested_alternative_master or "",
+                "alternative_affinity_score": round(float(a.alternative_affinity_score), 2),
                 "diagnostic_rationale": a.diagnostic_rationale,
                 "anomaly_zones_count": int(a.anomaly_zones_count),
                 "spatial_anomaly_pct": round(float(a.spatial_anomaly_pct), 2),
@@ -1386,6 +1418,9 @@ def main():
         print(f"  Studio Hands      : {summary.studio_workshop_count}")
         print(f"  Moutons Noirs     : {summary.black_sheep_outlier_count}")
         print(f"  Divergences       : {summary.high_controversy_count}")
+
+    # Compute cross-atelier multi-master alternative hand suggestions
+    auditor.compute_cross_master_attributions(summaries)
 
     report_path = export_html_report(summaries, args.output_report)
     tabular_paths = export_audit_tabular_data(summaries, Path(args.output_report).parent)
