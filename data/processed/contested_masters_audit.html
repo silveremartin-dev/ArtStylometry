@@ -56,6 +56,7 @@
         .status-pill-divergence.active { background: #c084fc; color: #0b1120; border-color: #c084fc; }
         .status-pill-demoted.active { background: #f43f5e; color: #fff; border-color: #f43f5e; }
         .status-pill-promoted.active { background: #10b981; color: #0b1120; border-color: #10b981; }
+        .artist-pill.is-empty { opacity: 0.38; border-color: #1e293b; color: #64748b; }
 
         /* CUSTOM INSTANT HOVER TOOLTIPS */
         [data-tooltip] { position: relative; }
@@ -380,31 +381,31 @@
         <!-- ROW 1: MASTER ATELIER SELECTOR -->
         <div class="filter-row">
             <span class="filter-label">👨‍🎨 Atelier:</span>
-            <button class="artist-pill active" onclick="filterByArtist('all', this)">All 12 Ateliers (1,066)</button>
+            <button class="artist-pill active" data-artist="all" onclick="filterByArtist('all', this)">All 12 Ateliers (<span class="artist-pill-count">1,066</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Johannes Vermeer', this)">Johannes Vermeer (47)</button>
+            <button class="artist-pill" data-artist="Johannes Vermeer" onclick="filterByArtist('Johannes Vermeer', this)">Johannes Vermeer (<span class="artist-pill-count">47</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Frans Hals', this)">Frans Hals (37)</button>
+            <button class="artist-pill" data-artist="Frans Hals" onclick="filterByArtist('Frans Hals', this)">Frans Hals (<span class="artist-pill-count">37</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Lucas Cranach the Elder', this)">Lucas Cranach the Elder (39)</button>
+            <button class="artist-pill" data-artist="Lucas Cranach the Elder" onclick="filterByArtist('Lucas Cranach the Elder', this)">Lucas Cranach the Elder (<span class="artist-pill-count">39</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Rembrandt van Rijn', this)">Rembrandt van Rijn (67)</button>
+            <button class="artist-pill" data-artist="Rembrandt van Rijn" onclick="filterByArtist('Rembrandt van Rijn', this)">Rembrandt van Rijn (<span class="artist-pill-count">67</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Leonardo da Vinci', this)">Leonardo da Vinci (63)</button>
+            <button class="artist-pill" data-artist="Leonardo da Vinci" onclick="filterByArtist('Leonardo da Vinci', this)">Leonardo da Vinci (<span class="artist-pill-count">63</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Peter Paul Rubens', this)">Peter Paul Rubens (42)</button>
+            <button class="artist-pill" data-artist="Peter Paul Rubens" onclick="filterByArtist('Peter Paul Rubens', this)">Peter Paul Rubens (<span class="artist-pill-count">42</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Titian (Tiziano Vecellio)', this)">Titian (47)</button>
+            <button class="artist-pill" data-artist="Titian (Tiziano Vecellio)" onclick="filterByArtist('Titian (Tiziano Vecellio)', this)">Titian (<span class="artist-pill-count">47</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('El Greco', this)">El Greco (38)</button>
+            <button class="artist-pill" data-artist="El Greco" onclick="filterByArtist('El Greco', this)">El Greco (<span class="artist-pill-count">38</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Raphael (Raffaello Sanzio)', this)">Raphael (40)</button>
+            <button class="artist-pill" data-artist="Raphael (Raffaello Sanzio)" onclick="filterByArtist('Raphael (Raffaello Sanzio)', this)">Raphael (<span class="artist-pill-count">40</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Francisco de Goya', this)">Francisco de Goya (507)</button>
+            <button class="artist-pill" data-artist="Francisco de Goya" onclick="filterByArtist('Francisco de Goya', this)">Francisco de Goya (<span class="artist-pill-count">507</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Diego Velázquez', this)">Diego Velázquez (38)</button>
+            <button class="artist-pill" data-artist="Diego Velázquez" onclick="filterByArtist('Diego Velázquez', this)">Diego Velázquez (<span class="artist-pill-count">38</span>)</button>
             
-            <button class="artist-pill" onclick="filterByArtist('Hieronymus Bosch', this)">Hieronymus Bosch (101)</button>
+            <button class="artist-pill" data-artist="Hieronymus Bosch" onclick="filterByArtist('Hieronymus Bosch', this)">Hieronymus Bosch (<span class="artist-pill-count">101</span>)</button>
             
         </div>
 
@@ -49864,9 +49865,10 @@
     function filterByArtistAndStatus(artist, status) {
         // Select artist pill
         document.querySelectorAll('.artist-pill').forEach(b => {
-            if (artist === 'all' && b.textContent.includes('All 12')) {
+            const dataArt = b.getAttribute('data-artist') || '';
+            if (artist === 'all' && dataArt === 'all') {
                 b.classList.add('active');
-            } else if (artist !== 'all' && b.textContent.toLowerCase().includes(artist.toLowerCase().split(' (')[0])) {
+            } else if (artist !== 'all' && (dataArt.toLowerCase().includes(artist.toLowerCase().split(' (')[0]) || b.textContent.toLowerCase().includes(artist.toLowerCase().split(' (')[0]))) {
                 b.classList.add('active');
             } else {
                 b.classList.remove('active');
@@ -49901,7 +49903,57 @@
         let totalVisible = 0;
         const sections = document.querySelectorAll('.artist-section');
 
-        // 1. Compute dynamic verdict counts scoped to the selected Atelier and search query
+        // 1. Calculate dynamic counts for Atelier pills based on currentStatus and currentQuery
+        let totalMatchingStatus = 0;
+        const artistCounts = {};
+
+        sections.forEach(sec => {
+            const artistName = sec.getAttribute('data-artist');
+            let artistMatchingCount = 0;
+
+            sec.querySelectorAll('.art-card').forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                const museum = card.querySelector('.card-museum').textContent.toLowerCase();
+                const attr = card.querySelector('.card-attr').textContent.toLowerCase();
+                const queryMatch = (!currentQuery || title.includes(currentQuery) || museum.includes(currentQuery) || attr.includes(currentQuery));
+                if (!queryMatch) return;
+
+                const statusTag = card.querySelector('.status-tag').textContent.trim();
+                const divType = card.getAttribute('data-divergence');
+
+                let statusMatch = (currentStatus === 'all');
+                if (currentStatus === 'Canonical Master') statusMatch = (divType === 'NONE' && statusTag.includes('Canonical'));
+                else if (currentStatus === 'Studio / Assistant') statusMatch = (divType === 'NONE' && statusTag.includes('Studio'));
+                else if (currentStatus === 'Mouton Noir' || currentStatus === 'Demoted') statusMatch = (divType === 'DEMOTED_ANOMALY');
+                else if (currentStatus === 'Promoted') statusMatch = (divType === 'PROMOTED_AUTOGRAPH');
+                else if (currentStatus === 'Divergences') statusMatch = (divType === 'DEMOTED_ANOMALY' || divType === 'PROMOTED_AUTOGRAPH');
+
+                if (statusMatch) {
+                    artistMatchingCount++;
+                    totalMatchingStatus++;
+                }
+            });
+
+            artistCounts[artistName] = artistMatchingCount;
+        });
+
+        // Update Atelier pill counts and dim empty ones
+        document.querySelectorAll('.artist-pill').forEach(btn => {
+            const artData = btn.getAttribute('data-artist');
+            const countSpan = btn.querySelector('.artist-pill-count');
+            if (!countSpan) return;
+
+            if (artData === 'all') {
+                countSpan.textContent = totalMatchingStatus.toLocaleString();
+                btn.classList.toggle('is-empty', totalMatchingStatus === 0);
+            } else {
+                const count = artistCounts[artData] || 0;
+                countSpan.textContent = count.toLocaleString();
+                btn.classList.toggle('is-empty', count === 0);
+            }
+        });
+
+        // 2. Compute dynamic verdict counts scoped to the selected Atelier and search query
         let scopeAll = 0;
         let scopeDivergences = 0;
         let scopeDemoted = 0;
@@ -49953,7 +50005,7 @@
         const elStu = document.getElementById('countPillStudio');
         if (elStu) elStu.textContent = scopeStudio.toLocaleString();
 
-        // 2. Filter sections and cards, and dynamically renumber visible works
+        // 3. Filter sections and cards, and dynamically renumber visible works
         sections.forEach(sec => {
             const artistName = sec.getAttribute('data-artist');
             const artistMatch = (currentArtist === 'all' || artistName.toLowerCase().includes(currentArtist.toLowerCase()));

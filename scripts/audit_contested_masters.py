@@ -97,6 +97,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         .status-pill-divergence.active { background: #c084fc; color: #0b1120; border-color: #c084fc; }
         .status-pill-demoted.active { background: #f43f5e; color: #fff; border-color: #f43f5e; }
         .status-pill-promoted.active { background: #10b981; color: #0b1120; border-color: #10b981; }
+        .artist-pill.is-empty { opacity: 0.38; border-color: #1e293b; color: #64748b; }
 
         /* CUSTOM INSTANT HOVER TOOLTIPS */
         [data-tooltip] { position: relative; }
@@ -421,9 +422,9 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         <!-- ROW 1: MASTER ATELIER SELECTOR -->
         <div class="filter-row">
             <span class="filter-label">👨‍🎨 Atelier:</span>
-            <button class="artist-pill active" onclick="filterByArtist('all', this)">All 12 Ateliers ({{ total_all }})</button>
+            <button class="artist-pill active" data-artist="all" onclick="filterByArtist('all', this)">All 12 Ateliers (<span class="artist-pill-count">{{ total_all }}</span>)</button>
             {% for s in summaries %}
-            <button class="artist-pill" onclick="filterByArtist('{{ s.artist_name }}', this)">{{ s.artist_name.split(' (')[0] }} ({{ s.total_artworks_evaluated }})</button>
+            <button class="artist-pill" data-artist="{{ s.artist_name }}" onclick="filterByArtist('{{ s.artist_name }}', this)">{{ s.artist_name.split(' (')[0] }} (<span class="artist-pill-count">{{ s.total_artworks_evaluated }}</span>)</button>
             {% endfor %}
         </div>
 
@@ -1288,9 +1289,10 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
     function filterByArtistAndStatus(artist, status) {
         // Select artist pill
         document.querySelectorAll('.artist-pill').forEach(b => {
-            if (artist === 'all' && b.textContent.includes('All 12')) {
+            const dataArt = b.getAttribute('data-artist') || '';
+            if (artist === 'all' && dataArt === 'all') {
                 b.classList.add('active');
-            } else if (artist !== 'all' && b.textContent.toLowerCase().includes(artist.toLowerCase().split(' (')[0])) {
+            } else if (artist !== 'all' && (dataArt.toLowerCase().includes(artist.toLowerCase().split(' (')[0]) || b.textContent.toLowerCase().includes(artist.toLowerCase().split(' (')[0]))) {
                 b.classList.add('active');
             } else {
                 b.classList.remove('active');
@@ -1325,7 +1327,57 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         let totalVisible = 0;
         const sections = document.querySelectorAll('.artist-section');
 
-        // 1. Compute dynamic verdict counts scoped to the selected Atelier and search query
+        // 1. Calculate dynamic counts for Atelier pills based on currentStatus and currentQuery
+        let totalMatchingStatus = 0;
+        const artistCounts = {};
+
+        sections.forEach(sec => {
+            const artistName = sec.getAttribute('data-artist');
+            let artistMatchingCount = 0;
+
+            sec.querySelectorAll('.art-card').forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                const museum = card.querySelector('.card-museum').textContent.toLowerCase();
+                const attr = card.querySelector('.card-attr').textContent.toLowerCase();
+                const queryMatch = (!currentQuery || title.includes(currentQuery) || museum.includes(currentQuery) || attr.includes(currentQuery));
+                if (!queryMatch) return;
+
+                const statusTag = card.querySelector('.status-tag').textContent.trim();
+                const divType = card.getAttribute('data-divergence');
+
+                let statusMatch = (currentStatus === 'all');
+                if (currentStatus === 'Canonical Master') statusMatch = (divType === 'NONE' && statusTag.includes('Canonical'));
+                else if (currentStatus === 'Studio / Assistant') statusMatch = (divType === 'NONE' && statusTag.includes('Studio'));
+                else if (currentStatus === 'Mouton Noir' || currentStatus === 'Demoted') statusMatch = (divType === 'DEMOTED_ANOMALY');
+                else if (currentStatus === 'Promoted') statusMatch = (divType === 'PROMOTED_AUTOGRAPH');
+                else if (currentStatus === 'Divergences') statusMatch = (divType === 'DEMOTED_ANOMALY' || divType === 'PROMOTED_AUTOGRAPH');
+
+                if (statusMatch) {
+                    artistMatchingCount++;
+                    totalMatchingStatus++;
+                }
+            });
+
+            artistCounts[artistName] = artistMatchingCount;
+        });
+
+        // Update Atelier pill counts and dim empty ones
+        document.querySelectorAll('.artist-pill').forEach(btn => {
+            const artData = btn.getAttribute('data-artist');
+            const countSpan = btn.querySelector('.artist-pill-count');
+            if (!countSpan) return;
+
+            if (artData === 'all') {
+                countSpan.textContent = totalMatchingStatus.toLocaleString();
+                btn.classList.toggle('is-empty', totalMatchingStatus === 0);
+            } else {
+                const count = artistCounts[artData] || 0;
+                countSpan.textContent = count.toLocaleString();
+                btn.classList.toggle('is-empty', count === 0);
+            }
+        });
+
+        // 2. Compute dynamic verdict counts scoped to the selected Atelier and search query
         let scopeAll = 0;
         let scopeDivergences = 0;
         let scopeDemoted = 0;
@@ -1377,7 +1429,7 @@ HTML_REPORT_TEMPLATE = """<!DOCTYPE html>
         const elStu = document.getElementById('countPillStudio');
         if (elStu) elStu.textContent = scopeStudio.toLocaleString();
 
-        // 2. Filter sections and cards, and dynamically renumber visible works
+        // 3. Filter sections and cards, and dynamically renumber visible works
         sections.forEach(sec => {
             const artistName = sec.getAttribute('data-artist');
             const artistMatch = (currentArtist === 'all' || artistName.toLowerCase().includes(currentArtist.toLowerCase()));
