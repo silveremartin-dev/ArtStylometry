@@ -443,51 +443,9 @@ class ArtistCorpusAuditor:
     def compute_cross_master_attributions(self, summaries: List[ArtistCorpusAuditSummary]) -> None:
         """
         Cross-evaluates every demoted anomaly, black sheep, or secondary workshop hand against
-        all other fitted master profiles to determine the closest alternative master/circle.
+        all other fitted master profiles to determine the closest alternative master purely via
+        Mahalanobis distance projection. Zero manual hardcoding.
         """
-        HISTORICAL_REATTRIBUTIONS = {
-            "wd_Q2045726": (
-                "Peter Paul Rubens",
-                92.0,
-                "Known 1603 historical copy after Leonardo's lost Palazzo Vecchio wall painting executed by Peter Paul Rubens (Flemish Baroque Master).",
-            ),
-            "wd_Q27955518": (
-                "Cesare da Sesto (Circle of Leonardo)",
-                88.5,
-                "Attributed by connoisseurship scholarship to Cesare da Sesto / Bernardino Luini (Milanese Leonardo Studio Circle).",
-            ),
-            "wd_Q18633460": (
-                "Workshop of Leonardo da Vinci",
-                82.0,
-                "16th-century workshop copy of La Belle Ferronnière (Musée des Beaux-Arts de Chambéry).",
-            ),
-            "wd_Q2126369": (
-                "Workshop of Leonardo da Vinci (Prado Studio)",
-                89.5,
-                "Contemporaneous studio copy executed alongside the master in Leonardo's bottega (Prado Mona Lisa).",
-            ),
-            "wd_Q4390923": (
-                "Follower of Leonardo da Vinci",
-                74.0,
-                "Contested portrait executed by workshop pupils/followers (Isleworth Mona Lisa).",
-            ),
-            "wd_Q105339423": (
-                "Follower of Leonardo da Vinci",
-                71.0,
-                "16th-century follower copy after Leonardo's Sainte Anne (Gemäldegalerie Berlin).",
-            ),
-            "wd_Q59682078": (
-                "Follower of Leonardo da Vinci",
-                68.0,
-                "16th-century Spanish follower copy after Leonardo's Sainte Anne (Museo del Prado).",
-            ),
-            "nga_50725": (
-                "Leonardo da Vinci Studio",
-                95.0,
-                "Heraldic reverse emblem of laurel, palm, and juniper on Ginevra de' Benci.",
-            ),
-        }
-
         print(f"\n{'='*70}\n[CROSS-ATTRIBUTION] Computing Multi-Master Alternative Projections\n{'='*70}", flush=True)
 
         for summary in summaries:
@@ -495,15 +453,6 @@ class ArtistCorpusAuditor:
             for art in summary.ranked_artworks:
                 aid = art.artwork_id
 
-                # 1. Check historical ground-truth reattributions
-                if aid in HISTORICAL_REATTRIBUTIONS:
-                    alt_name, aff, exp = HISTORICAL_REATTRIBUTIONS[aid]
-                    art.suggested_alternative_master = alt_name
-                    art.alternative_affinity_score = aff
-                    art.diagnostic_rationale += f" — 💡 Suggested Hand: {alt_name} ({aff:.0f}% affinity). {exp}"
-                    continue
-
-                # 2. Check general demotions, black sheep, and secondary workshop hands
                 if art.divergence_type == "DEMOTED_ANOMALY" or art.is_black_sheep or art.verdict == "STUDIO_WORKSHOP_HAND":
                     vec = self.cached_canvas_vectors.get(aid)
                     if vec is None:

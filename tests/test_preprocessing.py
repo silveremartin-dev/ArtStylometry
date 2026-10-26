@@ -108,3 +108,41 @@ def test_detect_canvas_bbox_and_frame_isolation():
 
     cropped = ArtworkTiler.crop_frame(framed)
     assert cropped.shape[0] < 380 and cropped.shape[1] < 380
+
+
+def test_algorithmic_artwork_deduplicator(tmp_path):
+    from src.preprocessing.deduplicator import AlgorithmicArtworkDeduplicator
+
+    # Create two images of the same painting: one high-res (400x400) and one low-res (200x200) with slight noise
+    np.random.seed(42)
+    base_art = np.random.randint(40, 220, (200, 200, 3), dtype=np.uint8)
+    img_low = Image.fromarray(base_art)
+    img_high = img_low.resize((400, 400), Image.Resampling.LANCZOS)
+    # Third completely different painting
+    diff_art = np.random.randint(40, 220, (400, 400, 3), dtype=np.uint8)
+    img_diff = Image.fromarray(diff_art)
+
+    p_low = tmp_path / "low.jpg"
+    p_high = tmp_path / "high.jpg"
+    p_diff = tmp_path / "diff.jpg"
+    img_low.save(p_low)
+    img_high.save(p_high)
+    img_diff.save(p_diff)
+
+    records = [
+        {"artwork_id": "art_low", "local_path": str(p_low), "title": "Masterpiece (Low Res)"},
+        {"artwork_id": "art_high", "local_path": str(p_high), "title": "Masterpiece (High Res)"},
+        {"artwork_id": "art_diff", "local_path": str(p_diff), "title": "Different Painting"},
+    ]
+
+    dedup = AlgorithmicArtworkDeduplicator()
+    kept, pruned = dedup.deduplicate_records(records)
+
+    # Must keep high-res and diff, and prune low-res
+    assert len(kept) == 2
+    assert len(pruned) == 1
+    kept_ids = {r["artwork_id"] for r in kept}
+    assert "art_high" in kept_ids
+    assert "art_diff" in kept_ids
+    assert pruned[0]["duplicate_id"] == "art_low"
+    assert pruned[0]["retained_id"] == "art_high"
